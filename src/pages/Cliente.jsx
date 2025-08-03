@@ -64,7 +64,7 @@ export default function Clientes() {
       cliente.razon_social.toLowerCase().includes(search.toLowerCase()) ||
       cliente.cuit.toLowerCase().includes(search.toLowerCase())
   );
-  console.log(filteredClientes, "esto es filtered");
+
 
   // Handlers
   const handleSearchChange = (e) => setSearch(e.target.value);
