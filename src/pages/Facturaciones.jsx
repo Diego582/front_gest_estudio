@@ -23,12 +23,14 @@ import {
   Paper,
   IconButton,
   Tooltip,
+  Grid,
 } from "@mui/material";
 import { useDispatch, useSelector } from "react-redux";
 import { fetchFacturas } from "../store/actions/facturas";
 import { fetchClientes } from "../store/actions/clientes";
 import { createItemFactura } from "../store/actions/itemsFacturas";
 import { Add, UploadFile } from "@mui/icons-material";
+import { tiposComprobantes } from '../utils/tipoComprobantes';
 import * as XLSX from "xlsx";
 
 const Facturacion = () => {
@@ -62,15 +64,19 @@ const Facturacion = () => {
     cuit_dni: "",
     razon_social: "",
   });
-  const [items, setItems] = useState([
+  const [itemsAlicuota, setItemsAlicuota] = useState([
     {
-      descripcion: "",
-      excento: 0,
       alicuotasIva: [{ tipo: "", netoGravado: 0, iva: 0 }],
+    },
+  ]);
+  const [itemsPercepciones, setItemsPercepciones] = useState([
+    {
       percepciones: [{ tipo: "", monto: 0 }],
+    },
+  ]);
+  const [itemsRetenciones, setItemsRetenciones] = useState([
+    {
       retenciones: [{ tipo: "", monto: 0 }],
-      impuestosInternos: 0,
-      ITC: 0,
     },
   ]);
 
@@ -122,7 +128,7 @@ const Facturacion = () => {
     });
   };
 
-  const addItem = () => {
+  /*  const addItem = () => {
     setItems((prev) => [
       ...prev,
       {
@@ -135,10 +141,14 @@ const Facturacion = () => {
         ITC: 0,
       },
     ]);
+  }; */
+
+  const addItem = (setState, newItem) => {
+    setState((prev) => [...prev, newItem]);
   };
 
-  const removeItem = (index) => {
-    setItems((prev) => prev.filter((_, i) => i !== index));
+  const removeItem = (setState, index) => {
+    setState((prev) => prev.filter((_, i) => i !== index));
   };
 
   // Submit form
@@ -317,36 +327,195 @@ const Facturacion = () => {
             sx={{ display: "flex", flexDirection: "column", gap: 2, mt: 1 }}
           >
             {/* Campos Factura */}
-            <FormControl fullWidth>
-              <InputLabel id="cliente-select-label-modal">Cliente</InputLabel>
-              <Select
-                labelId="cliente-select-label-modal"
-                name="cliente_id"
-                value={formFactura.cliente_id}
-                label="Cliente"
-                onChange={handleFormFacturaChange}
-                size="small"
-                disabled
-              >
-                {clientes.map((c) => (
-                  <MenuItem key={c._id} value={c._id}>
-                    {c.razon_social}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
 
-            <TextField
-              label="Fecha"
-              name="fecha"
-              type="date"
-              value={formFactura.fecha}
-              onChange={handleFormFacturaChange}
-              fullWidth
-              InputLabelProps={{ shrink: true }}
-              size="small"
-              required
-            />
+            <Box sx={{ mt: 2, width: "100%" }}>
+              <Grid container spacing={2}>
+                <Grid item xs={12} sm={4}>
+                  <FormControl fullWidth>
+                    <InputLabel id="cliente-select-label-modal">
+                      Cliente
+                    </InputLabel>
+                    <Select
+                      labelId="cliente-select-label-modal"
+                      name="cliente_id"
+                      value={formFactura.cliente_id}
+                      label="Cliente"
+                      onChange={handleFormFacturaChange}
+                      size="small"
+                      disabled
+                    >
+                      {clientes.map((c) => (
+                        <MenuItem key={c._id} value={c._id}>
+                          {c.razon_social}
+                        </MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                </Grid>
+
+                <Grid item xs={12} sm={4}>
+                  <FormControl fullWidth>
+                    <InputLabel id="tipo-select-label">Tipo</InputLabel>
+                    <Select
+                      labelId="tipo-select-label"
+                      name="tipo"
+                      value={formFactura.tipo}
+                      label="Tipo"
+                      onChange={handleFormFacturaChange}
+                      size="small"
+                    >
+                      <MenuItem value="emitida">Emitida</MenuItem>
+                      <MenuItem value="recibida">Recibida</MenuItem>
+                    </Select>
+                  </FormControl>
+                </Grid>
+
+                <Grid item xs={12} sm={4}>
+                  <TextField
+                    label="Fecha"
+                    name="fecha"
+                    type="date"
+                    value={formFactura.fecha}
+                    onChange={handleFormFacturaChange}
+                    fullWidth
+                    InputLabelProps={{ shrink: true }}
+                    size="small"
+                    required
+                  />
+                </Grid>
+              </Grid>
+            </Box>
+
+            <Box sx={{ mt: 2, width: "100%" }}>
+              <Grid container spacing={2}>
+                <Grid item xs={12} sm={4}>
+                  <TextField
+                    select
+                    label="Código Comprobante"
+                    name="codigo_comprobante"
+                    value={formFactura.codigo_comprobante}
+                    onChange={handleFormFacturaChange}
+                    fullWidth
+                    size="small"
+                    required
+                  >
+                    {tiposComprobantes.map((comp) => (
+                      <MenuItem key={comp.codigo} value={comp.codigo}>
+                        {comp.codigo} - {comp.descripcion}
+                      </MenuItem>
+                    ))}
+                  </TextField>
+                </Grid>
+
+                <Grid item xs={12} sm={4}>
+                  <TextField
+                    label="Punto de Venta"
+                    name="punto_venta"
+                    type="number"
+                    value={formFactura.punto_venta}
+                    onChange={handleFormFacturaChange}
+                    fullWidth
+                    size="small"
+                    required
+                  />
+                </Grid>
+
+                <Grid item xs={12} sm={4}>
+                  <TextField
+                    label="Número"
+                    name="numero"
+                    type="number"
+                    value={formFactura.numero}
+                    onChange={handleFormFacturaChange}
+                    fullWidth
+                    size="small"
+                    required
+                  />
+                </Grid>
+              </Grid>
+            </Box>
+            <Box sx={{ mt: 2, width: "100%" }}>
+              <Grid container spacing={2}>
+                <Grid item xs={12} sm={4}>
+                  <TextField
+                    label="Exento"
+                    type="number"
+                    fullWidth
+                    onChange={(e) =>
+                      handleItemChange(
+                        idx,
+                        "excento",
+                        null,
+                        parseFloat(e.target.value)
+                      )
+                    }
+                    size="small"
+                  />
+                </Grid>
+
+                <Grid item xs={12} sm={4}>
+                  <TextField
+                    label="Impuestos Internos"
+                    type="number"
+                    fullWidth
+                    onChange={(e) =>
+                      handleItemChange(
+                        idx,
+                        "impuestosInternos",
+                        null,
+                        parseFloat(e.target.value)
+                      )
+                    }
+                    size="small"
+                  />
+                </Grid>
+
+                <Grid item xs={12} sm={4}>
+                  <TextField
+                    label="ITC"
+                    type="number"
+                    fullWidth
+                    onChange={(e) =>
+                      handleItemChange(
+                        idx,
+                        "ITC",
+                        null,
+                        parseFloat(e.target.value)
+                      )
+                    }
+                    size="small"
+                  />
+                </Grid>
+              </Grid>
+            </Box>
+
+            <Box sx={{ mt: 2, width: "100%" }}>
+              <Grid container spacing={2}>
+                <Grid item xs={12} sm={6}>
+                  <TextField
+                    label="CUIT/DNI"
+                    name="cuit_dni"
+                    value={formFactura.cuit_dni}
+                    onChange={handleFormFacturaChange}
+                    fullWidth
+                    size="small"
+                    required
+                  />
+                </Grid>
+
+                <Grid item xs={12} sm={6}>
+                  <TextField
+                    label="Razón Social"
+                    name="razon_social"
+                    value={formFactura.razon_social}
+                    onChange={handleFormFacturaChange}
+                    fullWidth
+                    size="small"
+                    required
+                  />
+                </Grid>
+              </Grid>
+            </Box>
 
             <TextField
               label="Detalle"
@@ -357,259 +526,54 @@ const Facturacion = () => {
               multiline
               size="small"
             />
-
-            <FormControl fullWidth>
-              <InputLabel id="tipo-select-label">Tipo</InputLabel>
-              <Select
-                labelId="tipo-select-label"
-                name="tipo"
-                value={formFactura.tipo}
-                label="Tipo"
-                onChange={handleFormFacturaChange}
-                size="small"
-              >
-                <MenuItem value="emitida">Emitida</MenuItem>
-                <MenuItem value="recibida">Recibida</MenuItem>
-              </Select>
-            </FormControl>
-
-            <TextField
-              label="Código Comprobante"
-              name="codigo_comprobante"
-              type="number"
-              value={formFactura.codigo_comprobante}
-              onChange={handleFormFacturaChange}
-              fullWidth
-              size="small"
-              required
-            />
-            <TextField
-              label="Punto de Venta"
-              name="punto_venta"
-              type="number"
-              value={formFactura.punto_venta}
-              onChange={handleFormFacturaChange}
-              fullWidth
-              size="small"
-              required
-            />
-            <TextField
-              label="Número"
-              name="numero"
-              type="number"
-              value={formFactura.numero}
-              onChange={handleFormFacturaChange}
-              fullWidth
-              size="small"
-              required
-            />
-            <TextField
-              label="CUIT/DNI"
-              name="cuit_dni"
-              value={formFactura.cuit_dni}
-              onChange={handleFormFacturaChange}
-              fullWidth
-              size="small"
-              required
-            />
-            <TextField
-              label="Razón Social"
-              name="razon_social"
-              value={formFactura.razon_social}
-              onChange={handleFormFacturaChange}
-              fullWidth
-              size="small"
-              required
-            />
-
             {/* Items */}
             <Typography variant="subtitle1" mt={2}>
-              Items de la factura
+              Alicuotas Facturas
             </Typography>
 
-            {items.map((item, idx) => (
+            {itemsAlicuota.map((item, idx) => (
               <Box
                 key={idx}
                 sx={{ border: "1px solid #ccc", borderRadius: 1, p: 2, mb: 2 }}
               >
-                <TextField
-                  label="Descripción"
-                  fullWidth
-                  value={item.descripcion}
-                  onChange={(e) =>
-                    handleItemChange(idx, "descripcion", null, e.target.value)
-                  }
-                  size="small"
-                  required
-                />
-
-                <TextField
-                  label="Exento"
-                  type="number"
-                  fullWidth
-                  value={item.excento}
-                  onChange={(e) =>
-                    handleItemChange(
-                      idx,
-                      "excento",
-                      null,
-                      parseFloat(e.target.value)
-                    )
-                  }
-                  size="small"
-                />
-
                 {/* Alicuotas IVA */}
-                {tiposIVA.map((a, aIdx) => (
-                  <Box key={aIdx} sx={{ mt: 1 }}>
-                    <FormControl fullWidth size="small">
-                      <InputLabel>Tipo IVA</InputLabel>
-                      <Select
-                        value={a.tipo}
-                        label="Tipo IVA"
-                        onChange={(e) =>
-                          handleItemChange(idx, "alicuotasIva", aIdx, {
-                            ...a,
-                            tipo: e.target.value,
-                          })
-                        }
-                      >
-                        <MenuItem value="21">21%</MenuItem>
-                        <MenuItem value="10.5">10.5%</MenuItem>
-                        <MenuItem value="27">27%</MenuItem>
-                      </Select>
-                    </FormControl>
-                    <TextField
-                      label="Neto Gravado"
-                      type="number"
-                      value={a.netoGravado}
-                      onChange={(e) =>
-                        handleItemChange(idx, "alicuotasIva", aIdx, {
-                          ...a,
-                          netoGravado: parseFloat(e.target.value),
-                        })
-                      }
-                      size="small"
-                    />
-                    <TextField
-                      label="IVA"
-                      type="number"
-                      value={a}
-                      onChange={(e) =>
-                        handleItemChange(idx, "alicuotasIva", aIdx, {
-                          ...a,
-                          iva: parseFloat(e.target.value),
-                        })
-                      }
-                      size="small"
-                    />
-                  </Box>
-                ))}
+                <Box sx={{ mt: 2, width: "100%" }}>
+                  <Grid container spacing={2}>
+                    <Grid item xs={12} sm={4}>
+                      <FormControl size="small" fullWidth>
+                        <InputLabel>Tipo IVA</InputLabel>
+                        <Select label="Tipo IVA" defaultValue="">
+                          <MenuItem value="21">21%</MenuItem>
+                          <MenuItem value="10.5">10.5%</MenuItem>
+                          <MenuItem value="27">27%</MenuItem>
+                        </Select>
+                      </FormControl>
+                    </Grid>
 
-                {/* Percepciones */}
-                {tiposPercepcion.map((p, pIdx) => (
-                  <Box key={pIdx} sx={{ mt: 1 }}>
-                    <FormControl fullWidth size="small">
-                      <InputLabel>Tipo Percepción</InputLabel>
-                      <Select
-                        value={p}
-                        label="Tipo Percepción"
-                        onChange={(e) =>
-                          handleItemChange(idx, "percepciones", pIdx, {
-                            ...p,
-                            tipo: e.target.value,
-                          })
-                        }
-                      >
-                        <MenuItem value="IVA">IVA</MenuItem>
-                        <MenuItem value="IIBB">IIBB</MenuItem>
-                      </Select>
-                    </FormControl>
-                    <TextField
-                      label="Monto"
-                      type="number"
-                      value={p.monto}
-                      onChange={(e) =>
-                        handleItemChange(idx, "percepciones", pIdx, {
-                          ...p,
-                          monto: parseFloat(e.target.value),
-                        })
-                      }
-                      size="small"
-                    />
-                  </Box>
-                ))}
+                    <Grid item xs={12} sm={4}>
+                      <TextField
+                        fullWidth
+                        label="Neto Gravado"
+                        type="number"
+                        size="small"
+                      />
+                    </Grid>
 
-                {/* Retenciones */}
-                {tiposRetencion.map((r, rIdx) => (
-                  <Box key={rIdx} sx={{ mt: 1 }}>
-                    <FormControl fullWidth size="small">
-                      <InputLabel>Tipo Retencion</InputLabel>
-                      <Select
-                        value={r}
-                        label="Tipo Rercepción"
-                        onChange={(e) =>
-                          handleItemChange(idx, "rercepciones", rIdx, {
-                            ...r,
-                            tipo: e.target.value,
-                          })
-                        }
-                      >
-                        <MenuItem value="IVA">IVA</MenuItem>
-                        <MenuItem value="IIBB">IIBB</MenuItem>
-                      </Select>
-                    </FormControl>
-                    <TextField
-                      label="Monto"
-                      type="number"
-                      value={r.monto}
-                      onChange={(e) =>
-                        handleItemChange(idx, "retenciones", rIdx, {
-                          ...r,
-                          monto: parseFloat(e.target.value),
-                        })
-                      }
-                      size="small"
-                    />
-                  </Box>
-                ))}
-
-                <TextField
-                  label="Impuestos Internos"
-                  type="number"
-                  fullWidth
-                  value={item.impuestosInternos}
-                  onChange={(e) =>
-                    handleItemChange(
-                      idx,
-                      "impuestosInternos",
-                      null,
-                      parseFloat(e.target.value)
-                    )
-                  }
-                  size="small"
-                />
-
-                <TextField
-                  label="ITC"
-                  type="number"
-                  fullWidth
-                  value={item.ITC}
-                  onChange={(e) =>
-                    handleItemChange(
-                      idx,
-                      "ITC",
-                      null,
-                      parseFloat(e.target.value)
-                    )
-                  }
-                  size="small"
-                />
+                    <Grid item xs={12} sm={4}>
+                      <TextField
+                        fullWidth
+                        label="IVA"
+                        type="number"
+                        size="small"
+                      />
+                    </Grid>
+                  </Grid>
+                </Box>
 
                 <Button
                   size="small"
                   color="error"
-                  onClick={() => removeItem(idx)}
+                  onClick={() => removeItem(setItemsAlicuota, idx)}
                   sx={{ mt: 1 }}
                 >
                   Quitar
@@ -617,7 +581,113 @@ const Facturacion = () => {
               </Box>
             ))}
 
-            <Button variant="outlined" onClick={addItem} size="small">
+            <Button
+              variant="outlined"
+              onClick={() =>
+                addItem(setItemsAlicuota, { tipo: "", netoGravado: 0, iva: 0 })
+              }
+              size="small"
+            >
+              Agregar Item
+            </Button>
+
+            <Typography variant="subtitle1" mt={2}>
+              Percepciones Facturas
+            </Typography>
+            {itemsPercepciones.map((item, idx) => (
+              <Box
+                key={idx}
+                sx={{ border: "1px solid #ccc", borderRadius: 1, p: 2, mb: 2 }}
+              >
+                {/* Percepciones */}
+                <Grid container spacing={2} sx={{ mt: 1 }}>
+                  <Grid item xs={12} sm={6}>
+                    <FormControl fullWidth size="small">
+                      <InputLabel>Tipo Percepción</InputLabel>
+                      <Select label="Tipo Percepción">
+                        <MenuItem value="IVA">IVA</MenuItem>
+                        <MenuItem value="IIBB">IIBB</MenuItem>
+                      </Select>
+                    </FormControl>
+                  </Grid>
+
+                  <Grid item xs={12} sm={6}>
+                    <TextField
+                      fullWidth
+                      label="Monto"
+                      type="number"
+                      size="small"
+                    />
+                  </Grid>
+                </Grid>
+
+                <Button
+                  size="small"
+                  color="error"
+                  onClick={() => removeItem(setItemsPercepciones, idx)}
+                  sx={{ mt: 1 }}
+                >
+                  Quitar
+                </Button>
+              </Box>
+            ))}
+
+            <Button
+              variant="outlined"
+              onClick={() =>
+                addItem(setItemsPercepciones, { tiposPercepcion: "", monto: 0 })
+              }
+              size="small"
+            >
+              Agregar Item
+            </Button>
+
+            <Typography variant="subtitle1" mt={2}>
+              Retenciones Facturas
+            </Typography>
+            {itemsRetenciones.map((item, idx) => (
+              <Box
+                key={idx}
+                sx={{ border: "1px solid #ccc", borderRadius: 1, p: 2, mb: 2 }}
+              >
+                {/* Retenciones */}
+                <Grid container spacing={2} sx={{ mt: 1 }}>
+                  <Grid item xs={12} sm={6}>
+                    <FormControl fullWidth size="small">
+                      <InputLabel>Tipo Retención</InputLabel>
+                      <Select label="Tipo Retención">
+                        <MenuItem value="IVA">IVA</MenuItem>
+                        <MenuItem value="IIBB">IIBB</MenuItem>
+                      </Select>
+                    </FormControl>
+                  </Grid>
+                  <Grid item xs={12} sm={6}>
+                    <TextField
+                      fullWidth
+                      label="Monto"
+                      type="number"
+                      size="small"
+                    />
+                  </Grid>
+                </Grid>
+
+                <Button
+                  size="small"
+                  color="error"
+                  onClick={() => removeItem(setItemsRetenciones, idx)}
+                  sx={{ mt: 1 }}
+                >
+                  Quitar
+                </Button>
+              </Box>
+            ))}
+            <Button
+              variant="outlined"
+              onClick={() =>
+                addItem(setItemsRetenciones, { tiposRetencion: "", monto: 0 })
+              }
+              size="small"
+            >
               Agregar Item
             </Button>
           </Box>
