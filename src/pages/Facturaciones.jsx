@@ -588,7 +588,7 @@ const Facturacion = () => {
               }
               size="small"
             >
-              Agregar Item
+              Agregar Alicuota
             </Button>
 
             <Typography variant="subtitle1" mt={2}>
@@ -639,7 +639,7 @@ const Facturacion = () => {
               }
               size="small"
             >
-              Agregar Item
+              Agregar Percepcion
             </Button>
 
             <Typography variant="subtitle1" mt={2}>
@@ -688,7 +688,7 @@ const Facturacion = () => {
               }
               size="small"
             >
-              Agregar Item
+              Agregar Retencion
             </Button>
           </Box>
         </DialogContent>
