@@ -30,7 +30,7 @@ import { fetchFacturas } from "../store/actions/facturas";
 import { fetchClientes } from "../store/actions/clientes";
 import { createItemFactura } from "../store/actions/itemsFacturas";
 import { Add, UploadFile } from "@mui/icons-material";
-import { tiposComprobantes } from '../utils/tipoComprobantes';
+import { tiposComprobantes } from "../utils/tipoComprobantes";
 import * as XLSX from "xlsx";
 
 const Facturacion = () => {
