@@ -1,6 +1,7 @@
 import { createAsyncThunk } from "@reduxjs/toolkit";
 import axios from "axios";
 import apiUrl from "../../utils/apiUrl";
+import Swal from "sweetalert2";
 
 // FETCH todas las facturas (con filtro opcional)
 export const fetchFacturas = createAsyncThunk(
@@ -75,20 +76,54 @@ export const deleteFactura = createAsyncThunk(
 
 export const bulkCreateFacturas = (facturas) => async (dispatch) => {
   try {
-    const response = await axios.post('/api/facturas/bulk', facturas);
+    const response = await axios.post("/api/facturas/bulk", facturas);
     dispatch({
-      type: 'BULK_CREATE_FACTURAS_SUCCESS',
+      type: "BULK_CREATE_FACTURAS_SUCCESS",
       payload: response.data,
     });
   } catch (error) {
     dispatch({
-      type: 'BULK_CREATE_FACTURAS_FAIL',
+      type: "BULK_CREATE_FACTURAS_FAIL",
       payload: error.response?.data?.message || error.message,
     });
   }
 };
 
+export const uploadFacturasExcel = createAsyncThunk(
+  "facturas/uploadExcel",
+  async (file, { rejectWithValue }) => {
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
 
+      const response = await axios.post(
+        `${apiUrl}facturas/upload-excel`,
+        formData,
+        { headers: { "Content-Type": "multipart/form-data" } }
+      );
+
+      Swal.fire({
+        icon: "success",
+        title: "Carga completada",
+        text: `${response.data.insertados} comprobantes cargados`,
+        confirmButtonColor: "#3085d6",
+      });
+
+      return response.data.facturas || []; // 👈 backend debería devolver array de facturas
+    } catch (error) {
+      Swal.fire({
+        icon: "error",
+        title: "Error en la carga",
+        text: error.response?.data?.message || "No se pudo procesar el archivo",
+        confirmButtonColor: "#d33",
+      });
+
+      return rejectWithValue(
+        error.response?.data || { message: error.message }
+      );
+    }
+  }
+);
 
 const facturaActions = {
   fetchFacturas,
@@ -96,7 +131,8 @@ const facturaActions = {
   createFactura,
   updateFactura,
   deleteFactura,
-  bulkCreateFacturas
+  bulkCreateFacturas,
+  uploadFacturasExcel,
 };
 
 export default facturaActions;

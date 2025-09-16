@@ -9,6 +9,7 @@ const {
   createFactura,
   updateFactura,
   deleteFactura,
+  uploadFacturasExcel,
 } = facturaActions;
 
 const initialState = {
@@ -137,6 +138,20 @@ const facturaReducer = createReducer(initialState, (builder) => {
     })
     .addCase("BULK_CREATE_FACTURAS_FAIL", (state, action) => {
       state.error = action.payload;
+    })
+    // Migracion Factura
+    .addCase(uploadFacturasExcel.pending, (state) => {
+      state.loading = true;
+      state.error = null;
+    })
+    .addCase(uploadFacturasExcel.fulfilled, (state, action) => {
+      state.loading = false;
+      state.facturas = [...state.facturas, ...action.payload];
+      state.messages = ["Facturas cargadas desde Excel correctamente"];
+    })
+    .addCase(uploadFacturasExcel.rejected, (state, action) => {
+      state.loading = false;
+      state.error = action.payload?.message || action.error.message;
     });
 });
 

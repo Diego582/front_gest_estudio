@@ -26,7 +26,7 @@ import {
   Grid,
 } from "@mui/material";
 import { useDispatch, useSelector } from "react-redux";
-import { fetchFacturas } from "../store/actions/facturas";
+import { fetchFacturas, uploadFacturasExcel } from "../store/actions/facturas";
 import { fetchClientes } from "../store/actions/clientes";
 import { createItemFactura } from "../store/actions/itemsFacturas";
 import { Add, UploadFile } from "@mui/icons-material";
@@ -184,15 +184,14 @@ const Facturacion = () => {
   };
 
   // Importar Excel o CSV
-  const handleImport = async (e) => {
+  const handleImport = (e) => {
     const file = e.target.files[0];
-    if (!file) return;
-    const data = await file.arrayBuffer();
-    const workbook = XLSX.read(data);
-    const sheet = workbook.Sheets[workbook.SheetNames[0]];
-    const json = XLSX.utils.sheet_to_json(sheet);
-    // Aquí debes mapear json para que encaje con tu backend y disparar acción redux
-    console.log("Importado", json);
+    if (!file){
+      alert("no se cargo archivo")
+    } ; // Si no seleccionó archivo, no hace nada
+
+    // Solo disparo la acción redux que ya maneja los Swal
+    dispatch(uploadFacturasExcel(file));
   };
 
   // Agrupación por fecha (simplificada)
