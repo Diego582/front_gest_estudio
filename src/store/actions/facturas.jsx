@@ -91,15 +91,15 @@ export const bulkCreateFacturas = (facturas) => async (dispatch) => {
 
 export const uploadFacturasExcel = createAsyncThunk(
   "facturas/uploadExcel",
-  async (file, { rejectWithValue }) => {
+  async ({ file, clienteId }, { rejectWithValue }) => {
     try {
       const formData = new FormData();
       formData.append("file", file);
+      formData.append("clienteId", clienteId);
 
       const response = await axios.post(
         `${apiUrl}facturas/upload-excel`,
-        formData,
-        { headers: { "Content-Type": "multipart/form-data" } }
+        formData
       );
 
       Swal.fire({

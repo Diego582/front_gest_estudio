@@ -186,12 +186,12 @@ const Facturacion = () => {
   // Importar Excel o CSV
   const handleImport = (e) => {
     const file = e.target.files[0];
-    if (!file){
-      alert("no se cargo archivo")
-    } ; // Si no seleccionó archivo, no hace nada
+    if (!file) {
+      alert("no se cargo archivo");
+    } // Si no seleccionó archivo, no hace nada
 
     // Solo disparo la acción redux que ya maneja los Swal
-    dispatch(uploadFacturasExcel(file));
+    dispatch(uploadFacturasExcel({ file: file, clienteId: clienteId }));
   };
 
   // Agrupación por fecha (simplificada)
