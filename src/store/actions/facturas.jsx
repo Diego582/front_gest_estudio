@@ -104,12 +104,17 @@ export const uploadFacturasExcel = createAsyncThunk(
 
       Swal.fire({
         icon: "success",
-        title: "Carga completada",
-        text: `${response.data.insertados} comprobantes cargados`,
+        title: "Carga finalizada",
+        html: `
+          <p><b>Insertadas:</b> ${response.data.insertadas}</p>
+          <p><b>Duplicadas:</b> ${response.data.duplicadas}</p>
+          <p><b>Total procesadas:</b> ${response.data.total}</p>
+        `,
         confirmButtonColor: "#3085d6",
       });
 
-      return response.data.facturas || []; // 👈 backend debería devolver array de facturas
+      // 👇 acá retorna TODAS las facturas del cliente
+      return response.data.facturas || [];
     } catch (error) {
       Swal.fire({
         icon: "error",

@@ -132,7 +132,7 @@ const facturaReducer = createReducer(initialState, (builder) => {
       state.error = action.payload?.message || action.error.message;
     })
     .addCase("BULK_CREATE_FACTURAS_SUCCESS", (state, action) => {
-      state.facturas = [...state.facturas, ...action.payload];
+      state.facturas = action.payload; // 👈 reemplaza todo
       state.error = null;
       state.messages = ["Facturas importadas correctamente"];
     })
@@ -146,7 +146,7 @@ const facturaReducer = createReducer(initialState, (builder) => {
     })
     .addCase(uploadFacturasExcel.fulfilled, (state, action) => {
       state.loading = false;
-      state.facturas = [...state.facturas, ...action.payload];
+      state.facturas = action.payload; // 👈 reemplaza todo, evita duplicados
       state.messages = ["Facturas cargadas desde Excel correctamente"];
     })
     .addCase(uploadFacturasExcel.rejected, (state, action) => {

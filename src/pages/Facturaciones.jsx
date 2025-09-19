@@ -80,6 +80,41 @@ const Facturacion = () => {
     },
   ]);
 
+  // Agrupación por fecha (simplificada)
+
+  const [fechaInicio, setFechaInicio] = useState("");
+  const [fechaFin, setFechaFin] = useState("");
+
+  const filteredFacturas = facturas
+    .filter((f) => f.tipo === tipoFactura)
+    .filter((f) => {
+      if (!fechaInicio && !fechaFin) return true;
+      const fechaFactura = new Date(f.fecha).toISOString().split("T")[0];
+      if (fechaInicio && fechaFin) {
+        return fechaFactura >= fechaInicio && fechaFactura <= fechaFin;
+      }
+      if (fechaInicio) return fechaFactura >= fechaInicio;
+      if (fechaFin) return fechaFactura <= fechaFin;
+      return true;
+    });
+
+  // Resumen de totales
+  const resumen = {
+    totalFacturas: filteredFacturas.length,
+    montoTotal: filteredFacturas.reduce(
+      (acc, f) => acc + (f.monto_total || 0),
+      0
+    ),
+    notasCredito: filteredFacturas
+      .filter((f) => f.tipo_comprobante === "NC")
+      .reduce((acc, f) => acc + (f.monto_total || 0), 0),
+    notasDebito: filteredFacturas
+      .filter((f) => f.tipo_comprobante === "ND")
+      .reduce((acc, f) => acc + (f.monto_total || 0), 0),
+  };
+
+  console.log(filteredFacturas, "filteredFacturas");
+
   // Carga clientes al montar
   useEffect(() => {
     dispatch(fetchClientes(search ? { search } : {}));
@@ -187,128 +222,236 @@ const Facturacion = () => {
   const handleImport = (e) => {
     const file = e.target.files[0];
     if (!file) {
-      alert("no se cargo archivo");
     } // Si no seleccionó archivo, no hace nada
 
     // Solo disparo la acción redux que ya maneja los Swal
     dispatch(uploadFacturasExcel({ file: file, clienteId: clienteId }));
   };
 
-  // Agrupación por fecha (simplificada)
-  const groupedFacturas = facturas.reduce((acc, factura) => {
-    const date = new Date(factura.fecha).toLocaleDateString();
-    acc[date] = acc[date] || [];
-    acc[date].push(factura);
-    return acc;
-  }, {});
-
   console.log(clientes, "esto es clientes");
   return (
-    <Container maxWidth="lg" sx={{ py: 4 }}>
-      <Box
-        display="flex"
-        flexDirection={{ xs: "column", sm: "row" }}
-        justifyContent="space-between"
-        alignItems="center"
-        mb={3}
-        gap={2}
-      >
-        <FormControl sx={{ minWidth: 200 }}>
-          <InputLabel id="cliente-select-label">Cliente</InputLabel>
-          <Select
-            labelId="cliente-select-label"
-            value={clienteId}
-            label="Cliente"
-            onChange={handleClienteChange}
-            size="small"
-          >
-            {clientes.map((c) => (
-              <MenuItem key={c._id} value={c._id}>
-                {c.razon_social}
-              </MenuItem>
-            ))}
-          </Select>
-        </FormControl>
+    <Container
+      maxWidth="lg"
+      sx={{
+        display: "flex",
+        flexDirection: "column",
+        height: `calc(100vh - 64px)`, // altura total menos header
+        py: 1,
+      }}
+    >
+      <Grid container spacing={2} alignItems="center" mb={2}>
+        {/* Cliente */}
+        <Grid item xs={12} sm={6} md={3}>
+          <FormControl fullWidth size="small">
+            <InputLabel id="cliente-select-label">Cliente</InputLabel>
+            <Select
+              labelId="cliente-select-label"
+              value={clienteId}
+              label="Cliente"
+              onChange={handleClienteChange}
+            >
+              {clientes.map((c) => (
+                <MenuItem key={c._id} value={c._id}>
+                  {c.razon_social}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+        </Grid>
 
-        <FormControl label="Tipo">
-          <Typography
-            component="div"
-            sx={{ display: "flex", alignItems: "center" }}
-          >
-            Recibidas
-            <Switch
-              checked={tipoFactura === "emitida"}
-              onChange={handleTipoChange}
-              color="primary"
-              inputProps={{ "aria-label": "Tipo factura" }}
+        {/* Fechas */}
+        <Grid item xs={12} sm={6} md={4}>
+          <Box display="flex" gap={1}>
+            <TextField
+              label="Fecha Inicio"
+              type="date"
+              size="small"
+              value={fechaInicio}
+              onChange={(e) => setFechaInicio(e.target.value)}
+              InputLabelProps={{ shrink: true }}
+              fullWidth
             />
-            Emitidas
-          </Typography>
-        </FormControl>
+            <TextField
+              label="Fecha Fin"
+              type="date"
+              size="small"
+              value={fechaFin}
+              onChange={(e) => setFechaFin(e.target.value)}
+              InputLabelProps={{ shrink: true }}
+              fullWidth
+            />
+            <Button
+              variant="outlined"
+              onClick={() => {
+                setFechaInicio("");
+                setFechaFin("");
+              }}
+            >
+              Limpiar
+            </Button>
+          </Box>
+        </Grid>
 
-        <Button
-          variant="contained"
-          startIcon={<Add />}
-          onClick={() => setOpenForm(true)}
-          disabled={!clienteId}
-        >
-          Nueva Factura
-        </Button>
+        {/* Switch Tipo */}
+        <Grid item xs={12} sm={6} md={2}>
+          <FormControl>
+            <Typography
+              component="div"
+              sx={{ display: "flex", alignItems: "center" }}
+            >
+              Recibidas
+              <Switch
+                checked={tipoFactura === "emitida"}
+                onChange={(e) =>
+                  setTipoFactura(e.target.checked ? "emitida" : "recibida")
+                }
+                color="primary"
+              />
+              Emitidas
+            </Typography>
+          </FormControl>
+        </Grid>
 
-        <Button
-          variant="outlined"
-          component="label"
-          startIcon={<UploadFile />}
-          disabled={!clienteId}
-        >
-          Importar Excel/CSV
-          <input
-            type="file"
-            accept=".xlsx, .csv"
-            hidden
-            onChange={handleImport}
-          />
-        </Button>
-      </Box>
+        {/* Botones */}
+        <Grid item xs={12} sm={6} md={3} display="flex" gap={1}>
+          <Button
+            variant="contained"
+            startIcon={<Add />}
+            onClick={() => setOpenForm(true)}
+            disabled={!clienteId}
+            fullWidth
+          >
+            Nueva Factura
+          </Button>
+
+          <Button
+            variant="outlined"
+            component="label"
+            startIcon={<UploadFile />}
+            disabled={!clienteId}
+            fullWidth
+          >
+            Importar
+            <input
+              type="file"
+              accept=".xlsx, .csv"
+              hidden
+              onChange={handleImport}
+            />
+          </Button>
+        </Grid>
+      </Grid>
 
       {/* Tabla Facturas agrupadas por fecha */}
-      {Object.keys(groupedFacturas).length === 0 && (
+      {filteredFacturas.length === 0 && (
         <Typography>No hay facturas para mostrar</Typography>
       )}
 
-      {Object.entries(groupedFacturas).map(([date, facturasPorFecha]) => (
-        <Box key={date} sx={{ mb: 3 }}>
-          <Typography variant="h6" sx={{ mb: 1 }}>
-            {date}
-          </Typography>
-          <TableContainer component={Paper}>
-            <Table size="small">
+      <Box sx={{ flex: 1, minHeight: 0, mb: 2 }}>
+        {/* flex:1 para ocupar espacio restante; minHeight:0 evita overflow inesperado */}
+        <Paper
+          sx={{
+            width: "100%",
+            height: "100%",
+            display: "flex",
+            flexDirection: "column",
+          }}
+        >
+          <TableContainer sx={{ flex: 1, overflowY: "auto" }}>
+            <Table size="small" stickyHeader>
               <TableHead>
                 <TableRow>
-                  <TableCell>Código Comprobante</TableCell>
-                  <TableCell>Punto de Venta</TableCell>
-                  <TableCell>Número</TableCell>
-                  <TableCell>Detalle</TableCell>
-                  <TableCell>CUIT/DNI</TableCell>
-                  <TableCell>Razón Social</TableCell>
+                  <TableCell align="center">Fecha</TableCell>
+                  <TableCell align="left">Código Comprobante</TableCell>
+                  <TableCell align="center">Punto de Venta</TableCell>
+                  <TableCell align="center">Número</TableCell>
+                  <TableCell align="left">Detalle</TableCell>
+                  <TableCell align="center">CUIT/DNI</TableCell>
+                  <TableCell align="left">Razón Social</TableCell>
+                  <TableCell align="right">Importe Total</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
-                {facturasPorFecha.map((f) => (
-                  <TableRow key={f._id}>
-                    <TableCell>{f.codigo_comprobante}</TableCell>
-                    <TableCell>{f.punto_venta}</TableCell>
-                    <TableCell>{f.numero}</TableCell>
-                    <TableCell>{f.detalle}</TableCell>
-                    <TableCell>{f.cuit_dni}</TableCell>
-                    <TableCell>{f.razon_social}</TableCell>
+                {filteredFacturas.map((f) => (
+                  <TableRow
+                    key={f._id}
+                    sx={{
+                      "&:nth-of-type(odd)": { backgroundColor: "#f9f9f9" },
+                    }}
+                  >
+                    <TableCell align="center">
+                      {new Date(f.fecha).toLocaleDateString()}
+                    </TableCell>
+                    <TableCell align="left">{f.codigo_comprobante}</TableCell>
+                    <TableCell align="center">{f.punto_venta}</TableCell>
+                    <TableCell align="center">{f.numero}</TableCell>
+                    <TableCell align="left">{f.detalle}</TableCell>
+                    <TableCell align="center">{f.cuit_dni}</TableCell>
+                    <TableCell align="left">{f.razon_social}</TableCell>
+                    <TableCell align="right">
+                      {f.monto_total?.toLocaleString("es-AR", {
+                        style: "currency",
+                        currency: "ARS",
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2,
+                      })}
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
             </Table>
           </TableContainer>
-        </Box>
-      ))}
+        </Paper>
+      </Box>
+
+      {/* Footer fijo */}
+      {/* Footer fijo abajo */}
+      <Paper
+        elevation={3}
+        sx={{
+          flexShrink: 0,
+          p: 2,
+          borderTop: "1px solid #ddd",
+          backgroundColor: "#fafafa",
+        }}
+      >
+        <Grid container spacing={2}>
+          <Grid item xs={6} sm={3}>
+            <Typography variant="subtitle2">Total Facturas</Typography>
+            <Typography variant="h6">{resumen.totalFacturas}</Typography>
+          </Grid>
+          <Grid item xs={6} sm={3}>
+            <Typography variant="subtitle2">Monto Total</Typography>
+            <Typography variant="h6">
+              {resumen.montoTotal?.toLocaleString("es-AR", {
+                style: "currency",
+                currency: "ARS",
+                minimumFractionDigits: 2,
+              })}
+            </Typography>
+          </Grid>
+          <Grid item xs={6} sm={3}>
+            <Typography variant="subtitle2">Notas de Crédito</Typography>
+            <Typography variant="h6" color="error">
+              {resumen.notasCredito?.toLocaleString("es-AR", {
+                style: "currency",
+                currency: "ARS",
+                minimumFractionDigits: 2,
+              })}
+            </Typography>
+          </Grid>
+          <Grid item xs={6} sm={3}>
+            <Typography variant="subtitle2">Notas de Débito</Typography>
+            <Typography variant="h6" color="primary">
+              {resumen.notasDebito?.toLocaleString("es-AR", {
+                style: "currency",
+                currency: "ARS",
+                minimumFractionDigits: 2,
+              })}
+            </Typography>
+          </Grid>
+        </Grid>
+      </Paper>
 
       {/* Modal Formulario */}
       <Dialog
