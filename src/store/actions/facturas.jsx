@@ -3,14 +3,21 @@ import axios from "axios";
 import apiUrl from "../../utils/apiUrl";
 import Swal from "sweetalert2";
 
-// FETCH todas las facturas (con filtro opcional)
+// FETCH todas las facturas (filtradas por cliente si corresponde)
 export const fetchFacturas = createAsyncThunk(
   "facturas/fetchAll",
-  async ({ search = "" } = {}) => {
+  async ({ clienteId = "" } = {}) => {
     try {
-      const response = await axios.get(`${apiUrl}facturas?search=${search}`);
+      const params = new URLSearchParams();
+
+      if (clienteId) params.append("cliente_id", clienteId);
+
+      const response = await axios.get(
+        `${apiUrl}facturas?${params.toString()}`
+      );
       return response.data.response || [];
     } catch (error) {
+      console.error("Error al obtener facturas:", error);
       return [];
     }
   }
@@ -108,6 +115,7 @@ export const uploadFacturasExcel = createAsyncThunk(
         html: `
           <p><b>Insertadas:</b> ${response.data.insertadas}</p>
           <p><b>Duplicadas:</b> ${response.data.duplicadas}</p>
+          <p><b>Descartadas B:</b> ${response.data.descartadasB}</p>
           <p><b>Total procesadas:</b> ${response.data.total}</p>
         `,
         confirmButtonColor: "#3085d6",

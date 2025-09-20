@@ -23,6 +23,7 @@ import {
   Paper,
   IconButton,
   Tooltip,
+  Collapse,
   Grid,
 } from "@mui/material";
 import { useDispatch, useSelector } from "react-redux";
@@ -31,7 +32,9 @@ import { fetchClientes } from "../store/actions/clientes";
 import { createItemFactura } from "../store/actions/itemsFacturas";
 import { Add, UploadFile } from "@mui/icons-material";
 import { tiposComprobantes } from "../utils/tipoComprobantes";
-import * as XLSX from "xlsx";
+import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
+import KeyboardArrowUpIcon from "@mui/icons-material/KeyboardArrowUp";
+import ReceiptLongIcon from "@mui/icons-material/ReceiptLong";
 
 const Facturacion = () => {
   const tiposIVA = [21, 10.5, 27];
@@ -46,7 +49,7 @@ const Facturacion = () => {
     (state) => state.factura
   );
   const clientes = useSelector((state) => state.clientes.clientes);
-
+  console.log(loading, "loading");
   // Local state
   const [clienteId, setClienteId] = useState("");
   const [tipoFactura, setTipoFactura] = useState("emitida");
@@ -85,6 +88,12 @@ const Facturacion = () => {
   const [fechaInicio, setFechaInicio] = useState("");
   const [fechaFin, setFechaFin] = useState("");
 
+  const [openRows, setOpenRows] = useState({});
+
+  const toggleRow = (id) => {
+    setOpenRows((prev) => ({ ...prev, [id]: !prev[id] }));
+  };
+
   const filteredFacturas = facturas
     .filter((f) => f.tipo === tipoFactura)
     .filter((f) => {
@@ -98,20 +107,73 @@ const Facturacion = () => {
       return true;
     });
 
-  // Resumen de totales
+  // Inicializamos los totales
+  // Resumen actualizado
   const resumen = {
     totalFacturas: filteredFacturas.length,
-    montoTotal: filteredFacturas.reduce(
-      (acc, f) => acc + (f.monto_total || 0),
-      0
-    ),
-    notasCredito: filteredFacturas
-      .filter((f) => f.tipo_comprobante === "NC")
-      .reduce((acc, f) => acc + (f.monto_total || 0), 0),
-    notasDebito: filteredFacturas
-      .filter((f) => f.tipo_comprobante === "ND")
-      .reduce((acc, f) => acc + (f.monto_total || 0), 0),
+    montoTotal: 0, // suma de monto_total de facturas
+    montoDesdeItems: 0, // suma calculada desde items
+    diferencia: 0, // nuevo campo
+    notasCredito: 0,
+    notasDebito: 0,
+    iva105: 0,
+    iva21: 0,
+    iva27: 0,
+    netoGravado105: 0,
+    netoGravado21: 0,
+    netoGravado27: 0,
+    netoNoGravado: 0,
   };
+
+  filteredFacturas.forEach((f) => {
+    const montoFactura = f.monto_total || 0;
+    resumen.montoTotal += montoFactura;
+
+    if (f.tipo_comprobante === "NC") resumen.notasCredito += montoFactura;
+    if (f.tipo_comprobante === "ND") resumen.notasDebito += montoFactura;
+
+    let totalItemsFactura = 0;
+    f.items?.forEach((item) => {
+      const netoNoGravado = item.netoNoGravados || 0;
+      const impuestosInternos = item.impuestosInternos || 0;
+      const ITC = item.ITC || 0;
+
+      const totalAlicuotas =
+        item.alicuotasIva?.reduce(
+          (acc, a) => acc + ((a.netoGravado || 0) + (a.iva || 0)),
+          0
+        ) || 0;
+
+      totalItemsFactura +=
+        totalAlicuotas + netoNoGravado + impuestosInternos + ITC;
+
+      // Suma discriminada de IVA y neto gravado
+      item.alicuotasIva?.forEach((ali) => {
+        const tipoNormalized = ali.tipo.replace("%", "").trim();
+        const neto = ali.netoGravado || 0;
+        const iva = ali.iva || 0;
+        if (tipoNormalized === "10.5") {
+          resumen.iva105 += iva;
+          resumen.netoGravado105 += neto;
+        }
+        if (tipoNormalized === "21") {
+          resumen.iva21 += iva;
+          resumen.netoGravado21 += neto;
+        }
+        if (tipoNormalized === "27") {
+          resumen.iva27 += iva;
+          resumen.netoGravado27 += neto;
+        }
+      });
+
+      resumen.netoNoGravado += netoNoGravado;
+    });
+
+    resumen.montoDesdeItems += totalItemsFactura;
+  });
+
+  // Calculamos la diferencia
+  resumen.diferencia = resumen.montoTotal - resumen.montoDesdeItems;
 
   console.log(filteredFacturas, "filteredFacturas");
 
@@ -123,9 +185,9 @@ const Facturacion = () => {
   // Carga facturas cuando cambia cliente o tipo
   useEffect(() => {
     if (clienteId) {
-      dispatch(fetchFacturas({ clienteId, tipo: tipoFactura }));
+      dispatch(fetchFacturas({ clienteId }));
     }
-  }, [clienteId, tipoFactura, dispatch]);
+  }, [clienteId, dispatch]);
 
   // Handlers para filtros
   const handleClienteChange = (e) => {
@@ -343,116 +405,296 @@ const Facturacion = () => {
       </Grid>
 
       {/* Tabla Facturas agrupadas por fecha */}
-      {filteredFacturas.length === 0 && (
-        <Typography>No hay facturas para mostrar</Typography>
-      )}
-
-      <Box sx={{ flex: 1, minHeight: 0, mb: 2 }}>
-        {/* flex:1 para ocupar espacio restante; minHeight:0 evita overflow inesperado */}
-        <Paper
+      {filteredFacturas.length === 0 ? (
+        <Box
           sx={{
-            width: "100%",
-            height: "100%",
+            textAlign: "center",
+            mt: 8,
+            p: 4,
+            border: "2px dashed #90caf9",
+            borderRadius: 4,
+            backgroundColor: "#e3f2fd",
+            color: "#1565c0",
             display: "flex",
             flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: 2,
+            animation: "fadeIn 0.8s ease-in-out",
           }}
         >
-          <TableContainer sx={{ flex: 1, overflowY: "auto" }}>
-            <Table size="small" stickyHeader>
-              <TableHead>
-                <TableRow>
-                  <TableCell align="center">Fecha</TableCell>
-                  <TableCell align="left">Código Comprobante</TableCell>
-                  <TableCell align="center">Punto de Venta</TableCell>
-                  <TableCell align="center">Número</TableCell>
-                  <TableCell align="left">Detalle</TableCell>
-                  <TableCell align="center">CUIT/DNI</TableCell>
-                  <TableCell align="left">Razón Social</TableCell>
-                  <TableCell align="right">Importe Total</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {filteredFacturas.map((f) => (
-                  <TableRow
-                    key={f._id}
-                    sx={{
-                      "&:nth-of-type(odd)": { backgroundColor: "#f9f9f9" },
-                    }}
-                  >
-                    <TableCell align="center">
-                      {new Date(f.fecha).toLocaleDateString()}
-                    </TableCell>
-                    <TableCell align="left">{f.codigo_comprobante}</TableCell>
-                    <TableCell align="center">{f.punto_venta}</TableCell>
-                    <TableCell align="center">{f.numero}</TableCell>
-                    <TableCell align="left">{f.detalle}</TableCell>
-                    <TableCell align="center">{f.cuit_dni}</TableCell>
-                    <TableCell align="left">{f.razon_social}</TableCell>
-                    <TableCell align="right">
-                      {f.monto_total?.toLocaleString("es-AR", {
-                        style: "currency",
-                        currency: "ARS",
-                        minimumFractionDigits: 2,
-                        maximumFractionDigits: 2,
-                      })}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </TableContainer>
-        </Paper>
-      </Box>
+          <ReceiptLongIcon sx={{ fontSize: 80 }} />
+          <Typography variant="h5" fontWeight="bold">
+            ¡Oops!
+          </Typography>
+          <Typography variant="body1">
+            No hay facturas para mostrar <br />o los filtros aplicados no
+            coinciden con ningún resultado.
+          </Typography>
+          <Typography variant="caption" color="text.secondary">
+            Intenta quitar o modificar los filtros para ver resultados.
+          </Typography>
+        </Box>
+      ) : (
+        <>
+          <Box sx={{ flex: 1, minHeight: 0, mb: 2 }}>
+            <Paper
+              sx={{
+                width: "100%",
+                height: "100%",
+                display: "flex",
+                flexDirection: "column",
+              }}
+            >
+              <TableContainer sx={{ flex: 1, overflowY: "auto" }}>
+                <Table size="small" stickyHeader>
+                  <TableHead>
+                    <TableRow>
+                      <TableCell /> {/* Para el icono */}
+                      <TableCell align="center">Fecha</TableCell>
+                      <TableCell align="left">Código Comprobante</TableCell>
+                      <TableCell align="center">Punto de Venta</TableCell>
+                      <TableCell align="center">Número</TableCell>
+                      <TableCell align="left">Detalle</TableCell>
+                      <TableCell align="center">CUIT/DNI</TableCell>
+                      <TableCell align="left">Razón Social</TableCell>
+                      <TableCell align="right">Importe Total</TableCell>
+                    </TableRow>
+                  </TableHead>
 
-      {/* Footer fijo */}
-      {/* Footer fijo abajo */}
-      <Paper
-        elevation={3}
-        sx={{
-          flexShrink: 0,
-          p: 2,
-          borderTop: "1px solid #ddd",
-          backgroundColor: "#fafafa",
-        }}
-      >
-        <Grid container spacing={2}>
-          <Grid item xs={6} sm={3}>
-            <Typography variant="subtitle2">Total Facturas</Typography>
-            <Typography variant="h6">{resumen.totalFacturas}</Typography>
-          </Grid>
-          <Grid item xs={6} sm={3}>
-            <Typography variant="subtitle2">Monto Total</Typography>
-            <Typography variant="h6">
-              {resumen.montoTotal?.toLocaleString("es-AR", {
-                style: "currency",
-                currency: "ARS",
-                minimumFractionDigits: 2,
-              })}
-            </Typography>
-          </Grid>
-          <Grid item xs={6} sm={3}>
-            <Typography variant="subtitle2">Notas de Crédito</Typography>
-            <Typography variant="h6" color="error">
-              {resumen.notasCredito?.toLocaleString("es-AR", {
-                style: "currency",
-                currency: "ARS",
-                minimumFractionDigits: 2,
-              })}
-            </Typography>
-          </Grid>
-          <Grid item xs={6} sm={3}>
-            <Typography variant="subtitle2">Notas de Débito</Typography>
-            <Typography variant="h6" color="primary">
-              {resumen.notasDebito?.toLocaleString("es-AR", {
-                style: "currency",
-                currency: "ARS",
-                minimumFractionDigits: 2,
-              })}
-            </Typography>
-          </Grid>
-        </Grid>
-      </Paper>
+                  <TableBody>
+                    {filteredFacturas.map((f) => (
+                      <React.Fragment key={f._id}>
+                        {/* Fila principal */}
+                        <TableRow
+                          sx={{
+                            "&:nth-of-type(odd)": {
+                              backgroundColor: "#f9f9f9",
+                            },
+                          }}
+                        >
+                          <TableCell>
+                            <IconButton
+                              size="small"
+                              onClick={() => toggleRow(f._id)}
+                            >
+                              {openRows[f._id] ? (
+                                <KeyboardArrowUpIcon />
+                              ) : (
+                                <KeyboardArrowDownIcon />
+                              )}
+                            </IconButton>
+                          </TableCell>
 
+                          <TableCell align="center">
+                            {new Date(f.fecha).toLocaleDateString()}
+                          </TableCell>
+                          <TableCell align="left">
+                            {f.codigo_comprobante}
+                          </TableCell>
+                          <TableCell align="center">{f.punto_venta}</TableCell>
+                          <TableCell align="center">{f.numero}</TableCell>
+                          <TableCell align="left">{f.detalle}</TableCell>
+                          <TableCell align="center">{f.cuit_dni}</TableCell>
+                          <TableCell align="left">{f.razon_social}</TableCell>
+                          <TableCell align="right">
+                            {f.monto_total?.toLocaleString("es-AR", {
+                              style: "currency",
+                              currency: "ARS",
+                              minimumFractionDigits: 2,
+                              maximumFractionDigits: 2,
+                            })}
+                          </TableCell>
+                        </TableRow>
+
+                        {/* Collapse con items */}
+                        <TableRow>
+                          <TableCell
+                            colSpan={9}
+                            style={{ paddingBottom: 0, paddingTop: 0 }}
+                          >
+                            <Collapse
+                              in={openRows[f._id]}
+                              timeout="auto"
+                              unmountOnExit
+                            >
+                              <Box margin={1}>
+                                {f.items?.map((item, idx) => (
+                                  <Box
+                                    key={idx}
+                                    mb={1}
+                                    sx={{
+                                      borderBottom: "1px solid #eee",
+                                      pb: 1,
+                                    }}
+                                  >
+                                    <strong>{item.descripcion}</strong>
+                                    <div>
+                                      Neto Gravado:{" "}
+                                      {item.alicuotasIva
+                                        ?.reduce(
+                                          (acc, a) =>
+                                            acc + (a.netoGravado || 0),
+                                          0
+                                        )
+                                        .toLocaleString("es-AR", {
+                                          style: "currency",
+                                          currency: "ARS",
+                                        })}
+                                    </div>
+                                    <div>
+                                      IVA:{" "}
+                                      {item.alicuotasIva
+                                        ?.reduce(
+                                          (acc, a) => acc + (a.iva || 0),
+                                          0
+                                        )
+                                        .toLocaleString("es-AR", {
+                                          style: "currency",
+                                          currency: "ARS",
+                                        })}
+                                    </div>
+                                    <div>
+                                      Neto No Gravado:{" "}
+                                      {(
+                                        item.netoNoGravados || 0
+                                      ).toLocaleString("es-AR", {
+                                        style: "currency",
+                                        currency: "ARS",
+                                      })}
+                                    </div>
+                                  </Box>
+                                ))}
+
+                                {/* Suma total de los items */}
+                                <Box
+                                  mt={1}
+                                  p={1}
+                                  sx={{
+                                    borderTop: "2px solid #ccc",
+                                    fontWeight: "bold",
+                                    backgroundColor: "#f5f5f5",
+                                  }}
+                                >
+                                  <div>
+                                    Suma del Item:{" "}
+                                    {f.items
+                                      ?.reduce(
+                                        (acc, item) =>
+                                          acc +
+                                          (item.netoNoGravados || 0) +
+                                          (item.alicuotasIva?.reduce(
+                                            (subAcc, a) =>
+                                              subAcc +
+                                              (a.netoGravado || 0) +
+                                              (a.iva || 0),
+                                            0
+                                          ) || 0),
+                                        0
+                                      )
+                                      .toLocaleString("es-AR", {
+                                        style: "currency",
+                                        currency: "ARS",
+                                      })}
+                                  </div>
+                                </Box>
+                              </Box>
+                            </Collapse>
+                          </TableCell>
+                        </TableRow>
+                      </React.Fragment>
+                    ))}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+            </Paper>
+          </Box>
+
+          {/* Footer fijo */}
+          {/* Footer fijo abajo */}
+          <Paper
+            elevation={3}
+            sx={{
+              flexShrink: 0,
+              p: 1,
+              borderTop: "1px solid #ddd",
+              backgroundColor: "#fafafa",
+            }}
+          >
+            <Grid container spacing={1} alignItems="center">
+              {/* Totales generales */}
+              <Grid item xs={6} sm={1} sx={{ textAlign: "center" }}>
+                <Typography variant="caption">Total Item</Typography>
+                <Typography variant="body1">{resumen.totalFacturas}</Typography>
+              </Grid>
+              <Grid item xs={6} sm={2} sx={{ textAlign: "center" }}>
+                <Typography variant="caption">Monto Total</Typography>
+                <Typography variant="body1">
+                  {resumen.montoTotal?.toLocaleString("es-AR", {
+                    style: "currency",
+                    currency: "ARS",
+                    minimumFractionDigits: 2,
+                  })}
+                </Typography>
+              </Grid>
+
+              {/* Neto Gravado + IVA por alícuota */}
+              {["105", "21", "27"].map((ali) => (
+                <Grid item xs={6} sm={3} key={ali} sx={{ textAlign: "center" }}>
+                  <Typography variant="caption">
+                    Neto {ali}% / IVA {ali}%
+                  </Typography>
+                  <Typography variant="body1">
+                    {resumen[`netoGravado${ali}`]?.toLocaleString("es-AR", {
+                      style: "currency",
+                      currency: "ARS",
+                    })}{" "}
+                    /{" "}
+                    {resumen[`iva${ali}`]?.toLocaleString("es-AR", {
+                      style: "currency",
+                      currency: "ARS",
+                    })}
+                  </Typography>
+                </Grid>
+              ))}
+
+              {/* Neto No Gravado */}
+              <Grid item xs={6} sm={2} sx={{ textAlign: "center" }}>
+                <Typography variant="caption">Neto No Gravado</Typography>
+                <Typography variant="body1">
+                  {resumen.netoNoGravado?.toLocaleString("es-AR", {
+                    style: "currency",
+                    currency: "ARS",
+                  })}
+                </Typography>
+              </Grid>
+
+              {/* Comparación Factura vs Items */}
+              <Grid item xs={6} sm={2} sx={{ textAlign: "center" }}>
+                <Typography variant="caption">Monto Items</Typography>
+                <Typography variant="body1" color="secondary">
+                  {resumen.montoDesdeItems?.toLocaleString("es-AR", {
+                    style: "currency",
+                    currency: "ARS",
+                  })}
+                </Typography>
+              </Grid>
+              <Grid item xs={6} sm={2} sx={{ textAlign: "center" }}>
+                <Typography variant="caption">Diferencia</Typography>
+                <Typography
+                  variant="body1"
+                  color={resumen.diferencia !== 0 ? "error" : "textPrimary"}
+                >
+                  {resumen.diferencia?.toLocaleString("es-AR", {
+                    style: "currency",
+                    currency: "ARS",
+                  })}
+                </Typography>
+              </Grid>
+            </Grid>
+          </Paper>
+        </>
+      )}
       {/* Modal Formulario */}
       <Dialog
         open={openForm}
