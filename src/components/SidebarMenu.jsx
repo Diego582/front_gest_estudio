@@ -15,7 +15,12 @@ import ExitToAppIcon from "@mui/icons-material/ExitToApp";
 import { Link } from "react-router-dom";
 
 const menuItems = [
-  { text: "Dashboard", icon: <DashboardIcon />, route: "/dashboard" },
+  {
+    text: "Dashboard",
+    icon: <DashboardIcon />,
+    route: "/dashboard",
+    disabled: true,
+  },
   { text: "Clientes", icon: <GroupIcon />, route: "/clientes" },
   { text: "Facturaciones", icon: <ReceiptLongIcon />, route: "/facturaciones" },
 ];
@@ -35,11 +40,20 @@ const SidebarMenu = ({ onClose }) => {
       }}
     >
       <List>
-        {menuItems.map(({ text, icon, route }) => (
+        {menuItems.map(({ text, icon, route, disabled }) => (
           <ListItem key={text} disablePadding onClick={onClose}>
-            <Link to={route} style={{ textDecoration: "none" }}>
+            <Link
+              to={disabled ? "#" : route}
+              style={{ textDecoration: "none" }}
+            >
               <Tooltip title={text} placement="right">
-                <ListItemButton sx={{ justifyContent: "center" }}>
+                <ListItemButton
+                  sx={{
+                    justifyContent: "center",
+                    opacity: disabled ? 0.5 : 1, // visualmente deshabilitado
+                    cursor: disabled ? "not-allowed" : "pointer",
+                  }}
+                >
                   <ListItemIcon sx={{ color: "white" }}>{icon}</ListItemIcon>
                 </ListItemButton>
               </Tooltip>
@@ -64,4 +78,3 @@ const SidebarMenu = ({ onClose }) => {
 };
 
 export default SidebarMenu;
-

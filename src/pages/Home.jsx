@@ -20,6 +20,7 @@ const Home = () => {
         "Accedé al panel principal con métricas, accesos rápidos y resumen financiero del sistema.",
       icon: <BarChart3 size={32} />,
       path: "/dashboard",
+      disabled: true, // <--- deshabilitada por ahora
     },
     {
       title: "Facturaciones",
@@ -49,13 +50,15 @@ const Home = () => {
           <Grid key={item.title} item xs={12} sm={6} md={4}>
             <Card variant="outlined" sx={{ height: "100%" }}>
               <CardActionArea
-                onClick={() => navigate(item.path)}
+                onClick={() => !item.disabled && navigate(item.path)}
                 sx={{
                   p: 2,
                   height: "100%",
                   display: "flex",
                   flexDirection: "column",
                   justifyContent: "center",
+                  cursor: item.disabled ? "not-allowed" : "pointer",
+                  opacity: item.disabled ? 0.5 : 1,
                 }}
               >
                 <Box sx={{ mb: 2, color: "primary.main" }}>{item.icon}</Box>
