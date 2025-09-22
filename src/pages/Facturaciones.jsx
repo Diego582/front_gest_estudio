@@ -27,7 +27,7 @@ import {
   Grid,
 } from "@mui/material";
 import { useDispatch, useSelector } from "react-redux";
-import { fetchFacturas, uploadFacturasExcel } from "../store/actions/facturas";
+import { fetchFacturas, uploadFacturasExcel, uploadFacturasTxt} from "../store/actions/facturas";
 import { fetchClientes } from "../store/actions/clientes";
 import { createItemFactura } from "../store/actions/itemsFacturas";
 import { Add, UploadFile } from "@mui/icons-material";
@@ -290,6 +290,38 @@ const Facturacion = () => {
     dispatch(uploadFacturasExcel({ file: file, clienteId: clienteId }));
   };
 
+  // Importar TXT (VENTAS + ALICUOTAS)
+  const handleImportTxt = (e) => {
+    const files = e.target.files;
+    if (!files || files.length < 2) {
+      Swal.fire({
+        icon: "warning",
+        title: "Archivos faltantes",
+        text: "Debes seleccionar los archivos VENTAS.txt y ALICUOTAS.txt",
+      });
+      return;
+    }
+
+    // Buscar cuál es cada uno
+    const ventasFile = Array.from(files).find((f) =>
+      f.name.toUpperCase().includes("VENTAS")
+    );
+    const alicuotasFile = Array.from(files).find((f) =>
+      f.name.toUpperCase().includes("ALICUOTAS")
+    );
+
+    if (!ventasFile || !alicuotasFile) {
+      Swal.fire({
+        icon: "error",
+        title: "Error",
+        text: "No se encontraron los archivos VENTAS.txt y ALICUOTAS.txt",
+      });
+      return;
+    }
+
+    dispatch(uploadFacturasTxt({ ventasFile, alicuotasFile, clienteId }));
+  };
+
   console.log(clientes, "esto es clientes");
   return (
     <Container
@@ -361,7 +393,7 @@ const Facturacion = () => {
               component="div"
               sx={{ display: "flex", alignItems: "center" }}
             >
-              Recibidas
+              Compras
               <Switch
                 checked={tipoFactura === "emitida"}
                 onChange={(e) =>
@@ -369,7 +401,7 @@ const Facturacion = () => {
                 }
                 color="primary"
               />
-              Emitidas
+              Ventas
             </Typography>
           </FormControl>
         </Grid>
@@ -399,6 +431,23 @@ const Facturacion = () => {
               accept=".xlsx, .csv"
               hidden
               onChange={handleImport}
+            />
+          </Button>
+
+          <Button
+            variant="outlined"
+            component="label"
+            startIcon={<UploadFile />}
+            disabled={!clienteId}
+            fullWidth
+          >
+            Importar TXT
+            <input
+              type="file"
+              accept=".txt"
+              multiple
+              hidden
+              onChange={handleImportTxt}
             />
           </Button>
         </Grid>

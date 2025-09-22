@@ -10,6 +10,7 @@ const {
   updateFactura,
   deleteFactura,
   uploadFacturasExcel,
+  uploadFacturasTxt
 } = facturaActions;
 
 const initialState = {
@@ -150,6 +151,20 @@ const facturaReducer = createReducer(initialState, (builder) => {
       state.messages = ["Facturas cargadas desde Excel correctamente"];
     })
     .addCase(uploadFacturasExcel.rejected, (state, action) => {
+      state.loading = false;
+      state.error = action.payload?.message || action.error.message;
+    })
+    // Migración Factura TXT
+    .addCase(uploadFacturasTxt.pending, (state) => {
+      state.loading = true;
+      state.error = null;
+    })
+    .addCase(uploadFacturasTxt.fulfilled, (state, action) => {
+      state.loading = false;
+      state.facturas = action.payload; // 👈 reemplaza todo
+      state.messages = ["Facturas cargadas desde TXT correctamente"];
+    })
+    .addCase(uploadFacturasTxt.rejected, (state, action) => {
       state.loading = false;
       state.error = action.payload?.message || action.error.message;
     });

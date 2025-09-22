@@ -138,6 +138,48 @@ export const uploadFacturasExcel = createAsyncThunk(
   }
 );
 
+export const uploadFacturasTxt = createAsyncThunk(
+  "facturas/uploadTxt",
+  async ({ ventasFile, alicuotasFile, clienteId }, { rejectWithValue }) => {
+    try {
+      const formData = new FormData();
+      formData.append("ventas", ventasFile);
+      formData.append("alicuotas", alicuotasFile);
+      formData.append("clienteId", clienteId);
+
+      const response = await axios.post(
+        `${apiUrl}facturas/upload-txt`,
+        formData
+      );
+
+      Swal.fire({
+        icon: "success",
+        title: "Carga finalizada",
+        html: `
+          <p><b>Insertadas:</b> ${response.data.insertadas}</p>
+          <p><b>Duplicadas:</b> ${response.data.duplicadas}</p>
+          <p><b>Descartadas B:</b> ${response.data.descartadasB}</p>
+          <p><b>Total procesadas:</b> ${response.data.total}</p>
+        `,
+        confirmButtonColor: "#3085d6",
+      });
+
+      return response.data.facturas || [];
+    } catch (error) {
+      Swal.fire({
+        icon: "error",
+        title: "Error en la carga TXT",
+        text: error.response?.data?.message || "No se pudo procesar el archivo",
+        confirmButtonColor: "#d33",
+      });
+
+      return rejectWithValue(
+        error.response?.data || { message: error.message }
+      );
+    }
+  }
+);
+
 const facturaActions = {
   fetchFacturas,
   fetchFacturaById,
@@ -146,6 +188,7 @@ const facturaActions = {
   deleteFactura,
   bulkCreateFacturas,
   uploadFacturasExcel,
+  uploadFacturasTxt,
 };
 
 export default facturaActions;
