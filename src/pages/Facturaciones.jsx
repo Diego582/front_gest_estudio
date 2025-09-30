@@ -124,7 +124,11 @@ const Facturacion = () => {
     .filter((f) => f.tipo === tipoFactura)
     .filter((f) => {
       if (!fechaInicio && !fechaFin) return true;
-      const fechaFactura = new Date(f.fecha).toISOString().split("T")[0];
+
+      const fechaFactura = new Date(f.fecha).toLocaleDateString("sv-SE", {
+        timeZone: "UTC",
+      }); // YYYY-MM-DD
+
       if (fechaInicio && fechaFin) {
         return fechaFactura >= fechaInicio && fechaFactura <= fechaFin;
       }
