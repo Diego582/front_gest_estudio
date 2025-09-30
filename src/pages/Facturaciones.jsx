@@ -595,7 +595,9 @@ const Facturacion = () => {
                           </TableCell>
 
                           <TableCell align="center">
-                            {new Date(f.fecha).toLocaleDateString()}
+                            {new Date(f.fecha).toLocaleDateString("es-AR", {
+                              timeZone: "UTC",
+                            })}
                           </TableCell>
                           <TableCell align="left">
                             {f.codigo_comprobante}
