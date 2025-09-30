@@ -27,19 +27,42 @@ import {
   Grid,
 } from "@mui/material";
 import { useDispatch, useSelector } from "react-redux";
-import { fetchFacturas, uploadFacturasExcel, uploadFacturasTxt} from "../store/actions/facturas";
+import {
+  fetchFacturas,
+  uploadFacturasExcel,
+  uploadFacturasTxt,
+} from "../store/actions/facturas";
 import { fetchClientes } from "../store/actions/clientes";
 import { createItemFactura } from "../store/actions/itemsFacturas";
 import { Add, UploadFile } from "@mui/icons-material";
 import { tiposComprobantes } from "../utils/tipoComprobantes";
+
 import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
 import KeyboardArrowUpIcon from "@mui/icons-material/KeyboardArrowUp";
 import ReceiptLongIcon from "@mui/icons-material/ReceiptLong";
+import { exportLibroIVA } from "../components/ExportLibroIVA";
 
 const Facturacion = () => {
   const tiposIVA = [21, 10.5, 27];
   const tiposPercepcion = ["IVA", "IIBB"];
   const tiposRetencion = ["IVA", "IIBB"];
+
+  const meses = [
+    "Enero",
+    "Febrero",
+    "Marzo",
+    "Abril",
+    "Mayo",
+    "Junio",
+    "Julio",
+    "Agosto",
+    "Septiembre",
+    "Octubre",
+    "Noviembre",
+    "Diciembre",
+  ];
+
+  const hoy = new Date().getFullYear();
 
   const dispatch = useDispatch();
   const [search, setSearch] = useState("");
@@ -82,6 +105,9 @@ const Facturacion = () => {
       retenciones: [{ tipo: "", monto: 0 }],
     },
   ]);
+
+  const [mesPeriodo, setMesPeriodo] = useState(meses[new Date().getMonth()]);
+  const [anioPeriodo, setAnioPeriodo] = useState(hoy);
 
   // Agrupación por fecha (simplificada)
 
@@ -198,14 +224,6 @@ const Facturacion = () => {
     }));
   };
 
-  const handleTipoChange = (e) => {
-    setTipoFactura(e.target.checked ? "emitida" : "recibida");
-    setFormFactura((prev) => ({
-      ...prev,
-      tipo: e.target.checked ? "emitida" : "recibida",
-    }));
-  };
-
   // Form cambios
   const handleFormFacturaChange = (e) => {
     const { name, value } = e.target;
@@ -224,21 +242,6 @@ const Facturacion = () => {
       return newItems;
     });
   };
-
-  /*  const addItem = () => {
-    setItems((prev) => [
-      ...prev,
-      {
-        descripcion: "",
-        excento: 0,
-        alicuotasIva: [{ tipo: "", netoGravado: 0, iva: 0 }],
-        percepciones: [{ tipo: "", monto: 0 }],
-        retenciones: [{ tipo: "", monto: 0 }],
-        impuestosInternos: 0,
-        ITC: 0,
-      },
-    ]);
-  }; */
 
   const addItem = (setState, newItem) => {
     setState((prev) => [...prev, newItem]);
@@ -287,7 +290,16 @@ const Facturacion = () => {
     } // Si no seleccionó archivo, no hace nada
 
     // Solo disparo la acción redux que ya maneja los Swal
-    dispatch(uploadFacturasExcel({ file: file, clienteId: clienteId }));
+    dispatch(
+      uploadFacturasExcel({
+        file: file,
+        clienteId: clienteId,
+        periodo: {
+          mes: mesPeriodo,
+          anio: Number(anioPeriodo),
+        },
+      })
+    );
   };
 
   // Importar TXT (VENTAS + ALICUOTAS)
@@ -351,6 +363,36 @@ const Facturacion = () => {
               ))}
             </Select>
           </FormControl>
+        </Grid>
+
+        {/* Periodo: Mes y Año */}
+        <Grid item xs={12} sm={6} md={3}>
+          <Box display="flex" gap={1}>
+            <FormControl fullWidth size="small">
+              <InputLabel id="mes-select-label">Mes</InputLabel>
+              <Select
+                labelId="mes-select-label"
+                value={mesPeriodo}
+                label="Mes"
+                onChange={(e) => setMesPeriodo(e.target.value)}
+              >
+                {meses.map((mes) => (
+                  <MenuItem key={mes} value={mes}>
+                    {mes}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+
+            <TextField
+              label="Año"
+              type="number"
+              size="small"
+              value={anioPeriodo}
+              onChange={(e) => setAnioPeriodo(e.target.value)}
+              fullWidth
+            />
+          </Box>
         </Grid>
 
         {/* Fechas */}
@@ -449,6 +491,19 @@ const Facturacion = () => {
               hidden
               onChange={handleImportTxt}
             />
+          </Button>
+          <Button
+            variant="contained"
+            color="secondary"
+            onClick={() =>
+              exportLibroIVA(
+                clientes.find((c) => c._id === clienteId),
+                filteredFacturas,
+                resumen
+              )
+            }
+          >
+            Exportar Libro IVA (PDF)
           </Button>
         </Grid>
       </Grid>

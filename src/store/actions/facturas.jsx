@@ -98,12 +98,18 @@ export const bulkCreateFacturas = (facturas) => async (dispatch) => {
 
 export const uploadFacturasExcel = createAsyncThunk(
   "facturas/uploadExcel",
-  async ({ file, clienteId }, { rejectWithValue }) => {
+  async ({ file, clienteId, periodo }, { rejectWithValue }) => {
     try {
+      console.log(periodo, "esto es periodo antes de formdata");
       const formData = new FormData();
       formData.append("file", file);
       formData.append("clienteId", clienteId);
+      formData.append("mes", periodo.mes);
+      formData.append("anio", periodo.anio);
 
+      for (let [key, value] of formData.entries()) {
+        console.log(key, value);
+      }
       const response = await axios.post(
         `${apiUrl}facturas/upload-excel`,
         formData
