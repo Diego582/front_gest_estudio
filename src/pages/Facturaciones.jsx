@@ -36,10 +36,11 @@ import { fetchClientes } from "../store/actions/clientes";
 import { createItemFactura } from "../store/actions/itemsFacturas";
 import { Add, UploadFile } from "@mui/icons-material";
 import { tiposComprobantes } from "../utils/tipoComprobantes";
-
 import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
 import KeyboardArrowUpIcon from "@mui/icons-material/KeyboardArrowUp";
 import ReceiptLongIcon from "@mui/icons-material/ReceiptLong";
+import EditNoteIcon from "@mui/icons-material/EditNote";
+import DeleteForeverIcon from "@mui/icons-material/DeleteForever";
 import { exportLibroIVA } from "../components/ExportLibroIVA";
 
 const Facturacion = () => {
@@ -115,6 +116,9 @@ const Facturacion = () => {
   const [fechaFin, setFechaFin] = useState("");
 
   const [openRows, setOpenRows] = useState({});
+
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [selectedFacturaId, setSelectedFacturaId] = useState(null);
 
   const toggleRow = (id) => {
     setOpenRows((prev) => ({ ...prev, [id]: !prev[id] }));
@@ -286,6 +290,32 @@ const Facturacion = () => {
         dispatch(fetchFacturas({ clienteId, tipo: tipoFactura }));
       });
   };
+
+  const handleEditFactura = (factura) => {
+    setIsEditMode(true);
+    setSelectedFacturaId(factura._id);
+
+    setFormFactura({
+      cliente_id: factura.cliente_id?._id || factura.cliente_id,
+      fecha: factura.fecha?.substring(0, 10) || "",
+      detalle: factura.detalle || "",
+      tipo: factura.tipo || "emitida",
+      codigo_comprobante: factura.codigo_comprobante || "",
+      punto_venta: factura.punto_venta || "",
+      numero: factura.numero || "",
+      cuit_dni: factura.cuit_dni || "",
+      razon_social: factura.razon_social || "",
+    });
+
+    setItemsAlicuota(
+      factura.items?.flatMap((i) => i.alicuotasIva || []) || [
+        { tipo: "", netoGravado: 0, iva: 0 },
+      ]
+    );
+
+    setOpenForm(true);
+  };
+  const handleDeleteFactura = (f) => {};
 
   // Importar Excel o CSV
   const handleImport = (e) => {
@@ -567,6 +597,7 @@ const Facturacion = () => {
                       <TableCell align="center">CUIT/DNI</TableCell>
                       <TableCell align="left">Razón Social</TableCell>
                       <TableCell align="right">Importe Total</TableCell>
+                      <TableCell align="center">Acciones</TableCell>
                     </TableRow>
                   </TableHead>
 
@@ -614,6 +645,24 @@ const Facturacion = () => {
                               minimumFractionDigits: 2,
                               maximumFractionDigits: 2,
                             })}
+                          </TableCell>
+                          <TableCell align="center">
+                            <Tooltip title="Editar">
+                              <IconButton
+                                color="primary"
+                                onClick={() => handleEditFactura(f)}
+                              >
+                                <EditNoteIcon />
+                              </IconButton>
+                            </Tooltip>
+                            <Tooltip title="Eliminar">
+                              <IconButton
+                                color="error"
+                                onClick={() => handleDeleteFactura(f)}
+                              >
+                                <DeleteForeverIcon />
+                              </IconButton>
+                            </Tooltip>
                           </TableCell>
                         </TableRow>
 
