@@ -31,6 +31,7 @@ import {
   fetchFacturas,
   uploadFacturasExcel,
   uploadFacturasTxt,
+  updateFactura,
 } from "../store/actions/facturas";
 import { fetchClientes } from "../store/actions/clientes";
 import { createItemFactura } from "../store/actions/itemsFacturas";
@@ -119,6 +120,8 @@ const Facturacion = () => {
 
   const [isEditMode, setIsEditMode] = useState(false);
   const [selectedFacturaId, setSelectedFacturaId] = useState(null);
+
+  const [editSection, setEditSection] = useState(null);
 
   const toggleRow = (id) => {
     setOpenRows((prev) => ({ ...prev, [id]: !prev[id] }));
@@ -293,6 +296,7 @@ const Facturacion = () => {
 
   const handleEditFactura = (factura) => {
     setIsEditMode(true);
+    setEditSection("detalle");
     setSelectedFacturaId(factura._id);
 
     setFormFactura({
@@ -316,6 +320,31 @@ const Facturacion = () => {
     setOpenForm(true);
   };
   const handleDeleteFactura = (f) => {};
+  const handleEdit = () => {
+    if (!selectedFacturaId) return;
+    if (!formFactura) return;
+
+    dispatch(
+      updateFactura({
+        id: selectedFacturaId,
+        facturaData: { detalle: formFactura.detalle },
+      })
+    )
+      .unwrap()
+      .then((updatedFactura) => {
+        // Cerrar el modal
+        setOpenForm(false);
+
+        // Opcional: resetear el formulario
+        setFormFactura({ detalle: "" });
+        setSelectedFacturaId(null);
+      })
+      .catch((error) => {
+        console.error("Error al actualizar factura:", error);
+        // Opcional: mostrar alerta de error
+      });
+  };
+  const handleCreate = () => {};
 
   // Importar Excel o CSV
   const handleImport = (e) => {
@@ -334,6 +363,10 @@ const Facturacion = () => {
         },
       })
     );
+  };
+  const handleCreateFactura = () => {
+    setIsEditMode(false);
+    setOpenForm(true);
   };
 
   // Importar TXT (VENTAS + ALICUOTAS)
@@ -487,7 +520,7 @@ const Facturacion = () => {
           <Button
             variant="contained"
             startIcon={<Add />}
-            onClick={() => setOpenForm(true)}
+            onClick={() => handleCreateFactura()}
             disabled={!clienteId}
             fullWidth
           >
@@ -669,8 +702,8 @@ const Facturacion = () => {
                         {/* Collapse con items */}
                         <TableRow>
                           <TableCell
-                            colSpan={9}
                             style={{ paddingBottom: 0, paddingTop: 0 }}
+                            colSpan={10}
                           >
                             <Collapse
                               in={openRows[f._id]}
@@ -906,6 +939,7 @@ const Facturacion = () => {
                       label="Tipo"
                       onChange={handleFormFacturaChange}
                       size="small"
+                      disabled={isEditMode && editSection === "detalle"}
                     >
                       <MenuItem value="emitida">Emitida</MenuItem>
                       <MenuItem value="recibida">Recibida</MenuItem>
@@ -923,6 +957,7 @@ const Facturacion = () => {
                     fullWidth
                     InputLabelProps={{ shrink: true }}
                     size="small"
+                    disabled={isEditMode && editSection === "detalle"}
                     required
                   />
                 </Grid>
@@ -938,13 +973,14 @@ const Facturacion = () => {
                     name="codigo_comprobante"
                     value={formFactura.codigo_comprobante}
                     onChange={handleFormFacturaChange}
+                    disabled={isEditMode && editSection === "detalle"}
                     fullWidth
                     size="small"
                     required
                   >
                     {tiposComprobantes.map((comp) => (
                       <MenuItem key={comp.codigo} value={comp.codigo}>
-                        {comp.codigo} - {comp.descripcion}
+                        {comp.codigo}
                       </MenuItem>
                     ))}
                   </TextField>
@@ -959,6 +995,7 @@ const Facturacion = () => {
                     onChange={handleFormFacturaChange}
                     fullWidth
                     size="small"
+                    disabled={isEditMode && editSection === "detalle"}
                     required
                   />
                 </Grid>
@@ -971,6 +1008,7 @@ const Facturacion = () => {
                     value={formFactura.numero}
                     onChange={handleFormFacturaChange}
                     fullWidth
+                    disabled={isEditMode && editSection === "detalle"}
                     size="small"
                     required
                   />
@@ -981,6 +1019,7 @@ const Facturacion = () => {
               <Grid container spacing={2}>
                 <Grid item xs={12} sm={4}>
                   <TextField
+                    disabled={isEditMode && editSection === "detalle"}
                     label="Exento"
                     type="number"
                     fullWidth
@@ -998,6 +1037,7 @@ const Facturacion = () => {
 
                 <Grid item xs={12} sm={4}>
                   <TextField
+                    disabled={isEditMode && editSection === "detalle"}
                     label="Impuestos Internos"
                     type="number"
                     fullWidth
@@ -1015,6 +1055,7 @@ const Facturacion = () => {
 
                 <Grid item xs={12} sm={4}>
                   <TextField
+                    disabled={isEditMode && editSection === "detalle"}
                     label="ITC"
                     type="number"
                     fullWidth
@@ -1036,6 +1077,7 @@ const Facturacion = () => {
               <Grid container spacing={2}>
                 <Grid item xs={12} sm={6}>
                   <TextField
+                    disabled={isEditMode && editSection === "detalle"}
                     label="CUIT/DNI"
                     name="cuit_dni"
                     value={formFactura.cuit_dni}
@@ -1048,6 +1090,7 @@ const Facturacion = () => {
 
                 <Grid item xs={12} sm={6}>
                   <TextField
+                    disabled={isEditMode && editSection === "detalle"}
                     label="Razón Social"
                     name="razon_social"
                     value={formFactura.razon_social}
@@ -1070,176 +1113,208 @@ const Facturacion = () => {
               size="small"
             />
             {/* Items */}
-            <Typography variant="subtitle1" mt={2}>
-              Alicuotas Facturas
-            </Typography>
+            {!isEditMode && (
+              <>
+                <Typography variant="subtitle1" mt={2}>
+                  Alicuotas Facturas
+                </Typography>
 
-            {itemsAlicuota.map((item, idx) => (
-              <Box
-                key={idx}
-                sx={{ border: "1px solid #ccc", borderRadius: 1, p: 2, mb: 2 }}
-              >
-                {/* Alicuotas IVA */}
-                <Box sx={{ mt: 2, width: "100%" }}>
-                  <Grid container spacing={2}>
-                    <Grid item xs={12} sm={4}>
-                      <FormControl size="small" fullWidth>
-                        <InputLabel>Tipo IVA</InputLabel>
-                        <Select label="Tipo IVA" defaultValue="">
-                          <MenuItem value="21">21%</MenuItem>
-                          <MenuItem value="10.5">10.5%</MenuItem>
-                          <MenuItem value="27">27%</MenuItem>
-                        </Select>
-                      </FormControl>
-                    </Grid>
+                {itemsAlicuota.map((item, idx) => (
+                  <Box
+                    key={idx}
+                    sx={{
+                      border: "1px solid #ccc",
+                      borderRadius: 1,
+                      p: 2,
+                      mb: 2,
+                    }}
+                  >
+                    {/* Alicuotas IVA */}
+                    <Box sx={{ mt: 2, width: "100%" }}>
+                      <Grid container spacing={2}>
+                        <Grid item xs={12} sm={4}>
+                          <FormControl size="small" fullWidth>
+                            <InputLabel>Tipo IVA</InputLabel>
+                            <Select label="Tipo IVA" defaultValue="">
+                              <MenuItem value="21">21%</MenuItem>
+                              <MenuItem value="10.5">10.5%</MenuItem>
+                              <MenuItem value="27">27%</MenuItem>
+                            </Select>
+                          </FormControl>
+                        </Grid>
 
-                    <Grid item xs={12} sm={4}>
-                      <TextField
-                        fullWidth
-                        label="Neto Gravado"
-                        type="number"
-                        size="small"
-                      />
-                    </Grid>
+                        <Grid item xs={12} sm={4}>
+                          <TextField
+                            fullWidth
+                            label="Neto Gravado"
+                            type="number"
+                            size="small"
+                          />
+                        </Grid>
 
-                    <Grid item xs={12} sm={4}>
-                      <TextField
-                        fullWidth
-                        label="IVA"
-                        type="number"
-                        size="small"
-                      />
-                    </Grid>
-                  </Grid>
-                </Box>
+                        <Grid item xs={12} sm={4}>
+                          <TextField
+                            fullWidth
+                            label="IVA"
+                            type="number"
+                            size="small"
+                          />
+                        </Grid>
+                      </Grid>
+                    </Box>
 
-                <Button
-                  size="small"
-                  color="error"
-                  onClick={() => removeItem(setItemsAlicuota, idx)}
-                  sx={{ mt: 1 }}
-                >
-                  Quitar
-                </Button>
-              </Box>
-            ))}
-
-            <Button
-              variant="outlined"
-              onClick={() =>
-                addItem(setItemsAlicuota, { tipo: "", netoGravado: 0, iva: 0 })
-              }
-              size="small"
-            >
-              Agregar Alicuota
-            </Button>
-
-            <Typography variant="subtitle1" mt={2}>
-              Percepciones Facturas
-            </Typography>
-            {itemsPercepciones.map((item, idx) => (
-              <Box
-                key={idx}
-                sx={{ border: "1px solid #ccc", borderRadius: 1, p: 2, mb: 2 }}
-              >
-                {/* Percepciones */}
-                <Grid container spacing={2} sx={{ mt: 1 }}>
-                  <Grid item xs={12} sm={6}>
-                    <FormControl fullWidth size="small">
-                      <InputLabel>Tipo Percepción</InputLabel>
-                      <Select label="Tipo Percepción">
-                        <MenuItem value="IVA">IVA</MenuItem>
-                        <MenuItem value="IIBB">IIBB</MenuItem>
-                      </Select>
-                    </FormControl>
-                  </Grid>
-
-                  <Grid item xs={12} sm={6}>
-                    <TextField
-                      fullWidth
-                      label="Monto"
-                      type="number"
+                    <Button
                       size="small"
-                    />
-                  </Grid>
-                </Grid>
+                      color="error"
+                      onClick={() => removeItem(setItemsAlicuota, idx)}
+                      sx={{ mt: 1 }}
+                    >
+                      Quitar
+                    </Button>
+                  </Box>
+                ))}
 
                 <Button
+                  variant="outlined"
+                  onClick={() =>
+                    addItem(setItemsAlicuota, {
+                      tipo: "",
+                      netoGravado: 0,
+                      iva: 0,
+                    })
+                  }
                   size="small"
-                  color="error"
-                  onClick={() => removeItem(setItemsPercepciones, idx)}
-                  sx={{ mt: 1 }}
                 >
-                  Quitar
+                  Agregar Alicuota
                 </Button>
-              </Box>
-            ))}
 
-            <Button
-              variant="outlined"
-              onClick={() =>
-                addItem(setItemsPercepciones, { tiposPercepcion: "", monto: 0 })
-              }
-              size="small"
-            >
-              Agregar Percepcion
-            </Button>
+                <Typography variant="subtitle1" mt={2}>
+                  Percepciones Facturas
+                </Typography>
+                {itemsPercepciones.map((item, idx) => (
+                  <Box
+                    disabled={isEditMode && editSection === "detalle"}
+                    key={idx}
+                    sx={{
+                      border: "1px solid #ccc",
+                      borderRadius: 1,
+                      p: 2,
+                      mb: 2,
+                    }}
+                  >
+                    {/* Percepciones */}
+                    <Grid container spacing={2} sx={{ mt: 1 }}>
+                      <Grid item xs={12} sm={6}>
+                        <FormControl fullWidth size="small">
+                          <InputLabel>Tipo Percepción</InputLabel>
+                          <Select label="Tipo Percepción">
+                            <MenuItem value="IVA">IVA</MenuItem>
+                            <MenuItem value="IIBB">IIBB</MenuItem>
+                          </Select>
+                        </FormControl>
+                      </Grid>
 
-            <Typography variant="subtitle1" mt={2}>
-              Retenciones Facturas
-            </Typography>
-            {itemsRetenciones.map((item, idx) => (
-              <Box
-                key={idx}
-                sx={{ border: "1px solid #ccc", borderRadius: 1, p: 2, mb: 2 }}
-              >
-                {/* Retenciones */}
-                <Grid container spacing={2} sx={{ mt: 1 }}>
-                  <Grid item xs={12} sm={6}>
-                    <FormControl fullWidth size="small">
-                      <InputLabel>Tipo Retención</InputLabel>
-                      <Select label="Tipo Retención">
-                        <MenuItem value="IVA">IVA</MenuItem>
-                        <MenuItem value="IIBB">IIBB</MenuItem>
-                      </Select>
-                    </FormControl>
-                  </Grid>
-                  <Grid item xs={12} sm={6}>
-                    <TextField
-                      fullWidth
-                      label="Monto"
-                      type="number"
+                      <Grid item xs={12} sm={6}>
+                        <TextField
+                          fullWidth
+                          label="Monto"
+                          type="number"
+                          size="small"
+                        />
+                      </Grid>
+                    </Grid>
+
+                    <Button
                       size="small"
-                    />
-                  </Grid>
-                </Grid>
+                      color="error"
+                      onClick={() => removeItem(setItemsPercepciones, idx)}
+                      sx={{ mt: 1 }}
+                    >
+                      Quitar
+                    </Button>
+                  </Box>
+                ))}
 
                 <Button
+                  variant="outlined"
+                  onClick={() =>
+                    addItem(setItemsPercepciones, {
+                      tiposPercepcion: "",
+                      monto: 0,
+                    })
+                  }
                   size="small"
-                  color="error"
-                  onClick={() => removeItem(setItemsRetenciones, idx)}
-                  sx={{ mt: 1 }}
                 >
-                  Quitar
+                  Agregar Percepcion
                 </Button>
-              </Box>
-            ))}
-            <Button
-              variant="outlined"
-              onClick={() =>
-                addItem(setItemsRetenciones, { tiposRetencion: "", monto: 0 })
-              }
-              size="small"
-            >
-              Agregar Retencion
-            </Button>
+
+                <Typography variant="subtitle1" mt={2}>
+                  Retenciones Facturas
+                </Typography>
+                {itemsRetenciones.map((item, idx) => (
+                  <Box
+                    key={idx}
+                    sx={{
+                      border: "1px solid #ccc",
+                      borderRadius: 1,
+                      p: 2,
+                      mb: 2,
+                    }}
+                  >
+                    {/* Retenciones */}
+                    <Grid container spacing={2} sx={{ mt: 1 }}>
+                      <Grid item xs={12} sm={6}>
+                        <FormControl fullWidth size="small">
+                          <InputLabel>Tipo Retención</InputLabel>
+                          <Select label="Tipo Retención">
+                            <MenuItem value="IVA">IVA</MenuItem>
+                            <MenuItem value="IIBB">IIBB</MenuItem>
+                          </Select>
+                        </FormControl>
+                      </Grid>
+                      <Grid item xs={12} sm={6}>
+                        <TextField
+                          fullWidth
+                          label="Monto"
+                          type="number"
+                          size="small"
+                        />
+                      </Grid>
+                    </Grid>
+
+                    <Button
+                      size="small"
+                      color="error"
+                      onClick={() => removeItem(setItemsRetenciones, idx)}
+                      sx={{ mt: 1 }}
+                    >
+                      Quitar
+                    </Button>
+                  </Box>
+                ))}
+                <Button
+                  variant="outlined"
+                  onClick={() =>
+                    addItem(setItemsRetenciones, {
+                      tiposRetencion: "",
+                      monto: 0,
+                    })
+                  }
+                  size="small"
+                >
+                  Agregar Retencion
+                </Button>
+              </>
+            )}
           </Box>
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setOpenForm(false)}>Cancelar</Button>
-          <Button variant="contained" onClick={handleSubmit} disabled={loading}>
-            Guardar
-          </Button>
+          {isEditMode ? (
+            <Button onClick={handleEdit}>Editar</Button>
+          ) : (
+            <Button onClick={handleSubmit}>Guardar</Button>
+          )}
         </DialogActions>
       </Dialog>
     </Container>
