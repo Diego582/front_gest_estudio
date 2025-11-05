@@ -142,6 +142,21 @@ const Facturacion = () => {
       if (fechaInicio) return fechaFactura >= fechaInicio;
       if (fechaFin) return fechaFactura <= fechaFin;
       return true;
+    })
+    .filter((f) => {
+      if (mesPeriodo === "Todos" || !mesPeriodo) return true;
+      // Convertir nombre de mes (ej. "Agosto") a número de 2 dígitos
+      const mesIndex = meses.indexOf(mesPeriodo) + 1;
+      const mesFormateado = mesIndex.toString().padStart(2, "0");
+
+      // Extraer los datos del período de la factura
+      const mesFactura = f.periodo?.mes;
+      const anioFactura = f.periodo?.anio;
+
+      // Comparar mes y año
+      return (
+        mesFactura === mesFormateado && anioFactura === Number(anioPeriodo)
+      );
     });
 
   // Inicializamos los totales
@@ -446,6 +461,7 @@ const Facturacion = () => {
                 label="Mes"
                 onChange={(e) => setMesPeriodo(e.target.value)}
               >
+                <MenuItem value="Todos">Todos</MenuItem>
                 {meses.map((mes) => (
                   <MenuItem key={mes} value={mes}>
                     {mes}
