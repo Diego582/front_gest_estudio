@@ -186,7 +186,10 @@ const Facturacion = () => {
 
       // Suma discriminada de IVA y neto gravado
       item.alicuotasIva?.forEach((ali) => {
-        const tipoNormalized = ali.tipo.replace("%", "").trim();
+        const tipoNormalized = ali.tipo
+          .replace("%", "")
+          .trim()
+          .replace(",", ".");
         const neto = ali.netoGravado || 0;
         const iva = ali.iva || 0;
         if (tipoNormalized === "10.5") {
