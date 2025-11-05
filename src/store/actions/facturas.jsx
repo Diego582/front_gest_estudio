@@ -106,6 +106,7 @@ export const uploadFacturasExcel = createAsyncThunk(
       formData.append("clienteId", clienteId);
       formData.append("mes", periodo.mes);
       formData.append("anio", periodo.anio);
+      console.log(formData, "esto es formdata");
 
       for (let [key, value] of formData.entries()) {
         console.log(key, value);
