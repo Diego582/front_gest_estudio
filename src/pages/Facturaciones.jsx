@@ -110,6 +110,8 @@ const Facturacion = () => {
 
   const [mesPeriodo, setMesPeriodo] = useState(meses[new Date().getMonth()]);
   const [anioPeriodo, setAnioPeriodo] = useState(hoy);
+  console.log(mesPeriodo, "mesPeriodo");
+  console.log(anioPeriodo, "anioPeriodo");
 
   // Agrupación por fecha (simplificada)
 
@@ -585,7 +587,10 @@ const Facturacion = () => {
               exportLibroIVA(
                 clientes.find((c) => c._id === clienteId),
                 filteredFacturas,
-                resumen
+                resumen,
+                mesPeriodo,
+                anioPeriodo,
+                tipoFactura
               )
             }
           >

@@ -1,21 +1,46 @@
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 
-export const exportLibroIVA = (cliente, facturas, resumen) => {
+export const exportLibroIVA = (
+  cliente,
+  facturas,
+  resumen,
+  mesPeriodo,
+  anioPeriodo,
+  tipoFactura
+) => {
   const doc = new jsPDF({
     orientation: "landscape",
     unit: "mm",
     format: "a4",
   });
 
-  // Encabezado
-  doc.setFontSize(14);
-  doc.text("Libro IVA", 14, 20);
-  doc.setFontSize(10);
-  doc.text(`Cliente: ${cliente?.razon_social || "-"}`, 14, 30);
-  doc.text(`CUIT: ${cliente?.cuit || "-"}`, 14, 36);
+  // === FORMATEADOR DE MONEDA (pesos argentinos) ===
+  const formatCurrency = (value) => {
+    if (isNaN(value)) return "-";
+    return new Intl.NumberFormat("es-AR", {
+      style: "currency",
+      currency: "ARS",
+      minimumFractionDigits: 2,
+    }).format(value);
+  };
 
-  // Cuerpo de facturas
+  // === ENCABEZADO PRINCIPAL ===
+  doc.setFontSize(16);
+  doc.text(
+    `LIBRO IVA - ${
+      tipoFactura === "emitida"
+        ? "Ventas - " + mesPeriodo + " del año " + anioPeriodo
+        : "Compras - " + mesPeriodo + " del año " + anioPeriodo
+    }`,
+    14,
+    15
+  );
+  doc.setFontSize(10);
+  doc.text(`Cliente: ${cliente?.razon_social || "-"}`, 14, 25);
+  doc.text(`CUIT: ${cliente?.cuit || "-"}`, 14, 31);
+
+  // === CUERPO PRINCIPAL ===
   const rows = facturas.map((f) => {
     let neto105 = 0,
       iva105 = 0,
@@ -23,9 +48,10 @@ export const exportLibroIVA = (cliente, facturas, resumen) => {
       iva21 = 0,
       neto27 = 0,
       iva27 = 0;
+
     f.items?.forEach((item) => {
       item.alicuotasIva?.forEach((a) => {
-        const tipo = a.tipo.replace("%", "").trim();
+        const tipo = a.tipo.replace("%", "").trim().replace(",", ".");
         if (tipo === "10.5") {
           neto105 += a.netoGravado || 0;
           iva105 += a.iva || 0;
@@ -48,37 +74,21 @@ export const exportLibroIVA = (cliente, facturas, resumen) => {
       f.numero,
       f.cuit_dni,
       f.razon_social,
-      neto105.toFixed(2),
-      iva105.toFixed(2),
-      neto21.toFixed(2),
-      iva21.toFixed(2),
-      neto27.toFixed(2),
-      iva27.toFixed(2),
-      f.items?.reduce((acc, i) => acc + (i.netoNoGravados || 0), 0).toFixed(2),
-      f.monto_total?.toFixed(2),
+      f.detalle,
+      formatCurrency(neto105),
+      formatCurrency(iva105),
+      formatCurrency(neto21),
+      formatCurrency(iva21),
+      formatCurrency(neto27),
+      formatCurrency(iva27),
+      formatCurrency(
+        f.items?.reduce((acc, i) => acc + (i.netoNoGravados || 0), 0)
+      ),
+      formatCurrency(f.monto_total),
     ];
   });
 
-  // Totales en el footer
-  const foot = [
-    [
-      "Totales",
-      "",
-      "",
-      "",
-      "",
-      "",
-      resumen.netoGravado105.toFixed(2),
-      resumen.iva105.toFixed(2),
-      resumen.netoGravado21.toFixed(2),
-      resumen.iva21.toFixed(2),
-      resumen.netoGravado27.toFixed(2),
-      resumen.iva27.toFixed(2),
-      resumen.netoNoGravado.toFixed(2),
-      resumen.montoTotal.toFixed(2),
-    ],
-  ];
-
+  // === TABLA PRINCIPAL ===
   autoTable(doc, {
     startY: 45,
     head: [
@@ -89,6 +99,7 @@ export const exportLibroIVA = (cliente, facturas, resumen) => {
         "Número",
         "CUIT/DNI",
         "Razón Social",
+        "Detalle",
         "Neto 10.5%",
         "IVA 10.5%",
         "Neto 21%",
@@ -100,11 +111,67 @@ export const exportLibroIVA = (cliente, facturas, resumen) => {
       ],
     ],
     body: rows,
-    foot: foot, // 👈 Totales alineados con las mismas columnas
     styles: { fontSize: 8 },
     headStyles: { fillColor: [200, 200, 200] },
-    footStyles: { fillColor: [230, 230, 230], fontStyle: "bold" },
+    theme: "striped",
+    margin: { bottom: 20 },
   });
 
-  doc.save("libro_iva.pdf");
+  // === TOTALES SOLO AL FINAL ===
+  const finalY = doc.lastAutoTable.finalY + 10;
+  autoTable(doc, {
+    startY: finalY,
+    body: [
+      [
+        "Totales",
+        "",
+        "",
+        "",
+        "",
+        "",
+        formatCurrency(resumen.netoGravado105),
+        formatCurrency(resumen.iva105),
+        formatCurrency(resumen.netoGravado21),
+        formatCurrency(resumen.iva21),
+        formatCurrency(resumen.netoGravado27),
+        formatCurrency(resumen.iva27),
+        formatCurrency(resumen.netoNoGravado),
+        formatCurrency(resumen.montoTotal),
+      ],
+    ],
+    styles: { fontSize: 9, fontStyle: "bold" },
+    theme: "plain",
+    columnStyles: {
+      0: { fontStyle: "bold", halign: "left" },
+      6: { halign: "right" },
+      7: { halign: "right" },
+      8: { halign: "right" },
+      9: { halign: "right" },
+      10: { halign: "right" },
+      11: { halign: "right" },
+      12: { halign: "right" },
+      13: { halign: "right" },
+    },
+  });
+
+  // === PIE DE PÁGINA CON NUMERACIÓN ===
+  const pageCount = doc.internal.getNumberOfPages();
+  for (let i = 1; i <= pageCount; i++) {
+    doc.setPage(i);
+    doc.setFontSize(8);
+    doc.text(
+      `Página ${i} de ${pageCount}`,
+      doc.internal.pageSize.getWidth() - 30,
+      doc.internal.pageSize.getHeight() - 10
+    );
+  }
+
+  // === NOMBRE DEL ARCHIVO ===
+  doc.save(
+    `Libro_IVA_${
+      tipoFactura === "emitida"
+        ? `ventas_${mesPeriodo}_${anioPeriodo}_${cliente.cuit}`
+        : `compras_${mesPeriodo}_${anioPeriodo}_${cliente.cuit}`
+    }.pdf`
+  );
 };
