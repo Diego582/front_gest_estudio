@@ -35,6 +35,7 @@ import {
 } from "../store/actions/facturas";
 import { fetchClientes } from "../store/actions/clientes";
 import { createItemFactura } from "../store/actions/itemsFacturas";
+import { createFactura } from "../store/actions/facturas";
 import { Add, UploadFile } from "@mui/icons-material";
 import { tiposComprobantes } from "../utils/tipoComprobantes";
 import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
@@ -64,7 +65,7 @@ const Facturacion = () => {
     "Diciembre",
   ];
 
-  const hoy = new Date().getFullYear();
+  const hoy = new Date();
 
   const dispatch = useDispatch();
   const [search, setSearch] = useState("");
@@ -80,6 +81,10 @@ const Facturacion = () => {
   const [tipoFactura, setTipoFactura] = useState("emitida");
   const [openForm, setOpenForm] = useState(false);
 
+  const [mesPeriodo, setMesPeriodo] = useState(hoy.getMonth() + 1);
+
+  const [anioPeriodo, setAnioPeriodo] = useState(hoy.getFullYear());
+
   // Form state
   const [formFactura, setFormFactura] = useState({
     cliente_id: "",
@@ -91,26 +96,20 @@ const Facturacion = () => {
     numero: "",
     cuit_dni: "",
     razon_social: "",
+    monto_total: "",
+    periodo: { mes: mesPeriodo, anio: anioPeriodo },
   });
-  const [itemsAlicuota, setItemsAlicuota] = useState([
-    {
-      alicuotasIva: [{ tipo: "", netoGravado: 0, iva: 0 }],
-    },
-  ]);
-  const [itemsPercepciones, setItemsPercepciones] = useState([
-    {
-      percepciones: [{ tipo: "", monto: 0 }],
-    },
-  ]);
-  const [itemsRetenciones, setItemsRetenciones] = useState([
-    {
-      retenciones: [{ tipo: "", monto: 0 }],
-    },
-  ]);
-
-  const [mesPeriodo, setMesPeriodo] = useState(meses[new Date().getMonth()]);
-  const [anioPeriodo, setAnioPeriodo] = useState(hoy);
-  console.log(mesPeriodo, "mesPeriodo");
+  const [itemsAlicuota, setItemsAlicuota] = useState([]);
+  const [itemsPercepciones, setItemsPercepciones] = useState([]);
+  const [itemsRetenciones, setItemsRetenciones] = useState([]);
+  const [excento, setExcento] = useState(0);
+  const [impuestosInternos, setImpuestosInternos] = useState(0);
+  const [ITC, setITC] = useState(0);
+  const [netoNoGravados, setNetoNoGravados] = useState(0);
+  console.log(facturas, "facturas");
+  console.log(itemsAlicuota, "itemsAlicuota");
+  console.log(itemsPercepciones, "itemsPercepciones");
+  console.log(itemsRetenciones, "itemsRetenciones");
   console.log(anioPeriodo, "anioPeriodo");
 
   // Agrupación por fecha (simplificada)
@@ -147,17 +146,47 @@ const Facturacion = () => {
     })
     .filter((f) => {
       if (mesPeriodo === "Todos" || !mesPeriodo) return true;
-      // Convertir nombre de mes (ej. "Agosto") a número de 2 dígitos
-      const mesIndex = meses.indexOf(mesPeriodo) + 1;
-      const mesFormateado = mesIndex.toString().padStart(2, "0");
 
-      // Extraer los datos del período de la factura
-      const mesFactura = f.periodo?.mes;
+      const mesFacturaRaw = f.periodo?.mes;
       const anioFactura = f.periodo?.anio;
 
-      // Comparar mes y año
+      if (!mesFacturaRaw || !anioFactura) return false;
+
+      let mesFacturaNumero;
+
+      // 🔹 Si ya es número
+      if (typeof mesFacturaRaw === "number") {
+        mesFacturaNumero = mesFacturaRaw;
+      }
+
+      // 🔹 Si es string numérico tipo "08"
+      else if (!isNaN(mesFacturaRaw)) {
+        mesFacturaNumero = Number(mesFacturaRaw);
+      }
+
+      // 🔹 Si es nombre tipo "Agosto"
+      else {
+        const mesesTexto = [
+          "Enero",
+          "Febrero",
+          "Marzo",
+          "Abril",
+          "Mayo",
+          "Junio",
+          "Julio",
+          "Agosto",
+          "Septiembre",
+          "Octubre",
+          "Noviembre",
+          "Diciembre",
+        ];
+
+        mesFacturaNumero = mesesTexto.indexOf(mesFacturaRaw) + 1;
+      }
+
       return (
-        mesFactura === mesFormateado && anioFactura === Number(anioPeriodo)
+        mesFacturaNumero === Number(mesPeriodo) &&
+        Number(anioFactura) === Number(anioPeriodo)
       );
     });
 
@@ -283,37 +312,55 @@ const Facturacion = () => {
   };
 
   // Submit form
-  const handleSubmit = () => {
-    dispatch(createItemFactura({ factura: formFactura, items }))
-      .unwrap()
-      .then(() => {
-        setOpenForm(false);
-        setFormFactura({
-          cliente_id: "",
-          fecha: "",
-          detalle: "",
-          tipo: tipoFactura,
-          codigo_comprobante: "",
-          punto_venta: "",
-          numero: "",
-          cuit_dni: "",
-          razon_social: "",
-        });
-        setItems([
-          {
-            descripcion: "",
-            excento: 0,
-            alicuotasIva: [{ tipo: "", netoGravado: 0, iva: 0 }],
-            percepciones: [{ tipo: "", monto: 0 }],
-            retenciones: [{ tipo: "", monto: 0 }],
-            impuestosInternos: 0,
-            ITC: 0,
-          },
-        ]);
-        dispatch(fetchFacturas({ clienteId, tipo: tipoFactura }));
-      });
-  };
+  const handleSubmit = async () => {
+    try {
+      const facturaResponse = await dispatch(
+        createFactura(formFactura)
+      ).unwrap();
 
+      const facturaId = facturaResponse._id;
+
+      const itemFactura = {
+        factura_id: facturaId,
+        descripcion: formFactura.detalle,
+        excento,
+        alicuotasIva: itemsAlicuota,
+        percepciones: itemsPercepciones,
+        retenciones: itemsRetenciones,
+        impuestosInternos,
+        netoNoGravados,
+        ITC,
+      };
+
+      await dispatch(createItemFactura(itemFactura)).unwrap();
+
+      // 🔥 recién acá cerramos y limpiamos
+      setOpenForm(false);
+
+      setFormFactura({
+        fecha: "",
+        detalle: "",
+        tipo: tipoFactura,
+        codigo_comprobante: "",
+        punto_venta: "",
+        numero: "",
+        cuit_dni: "",
+        razon_social: "",
+      });
+
+      setItemsAlicuota([]);
+      setItemsPercepciones([]);
+      setItemsRetenciones([]);
+      setExcento(0);
+      setImpuestosInternos(0);
+      setNetoNoGravados(0);
+      setITC(0);
+
+      dispatch(fetchFacturas({ clienteId, tipo: tipoFactura }));
+    } catch (error) {
+      console.error("Error creando factura o item:", error);
+    }
+  };
   const handleEditFactura = (factura) => {
     setIsEditMode(true);
     setEditSection("detalle");
@@ -421,6 +468,17 @@ const Facturacion = () => {
     dispatch(uploadFacturasTxt({ ventasFile, alicuotasFile, clienteId }));
   };
 
+  const handleArrayChange = (setter, index, field, value) => {
+    setter((prev) => {
+      const updated = [...prev];
+      updated[index] = {
+        ...updated[index],
+        [field]: value,
+      };
+      return updated;
+    });
+  };
+
   console.log(clientes, "esto es clientes");
   return (
     <Container
@@ -434,7 +492,7 @@ const Facturacion = () => {
     >
       <Grid container spacing={2} alignItems="center" mb={2}>
         {/* Cliente */}
-        <Grid item xs={12} sm={6} md={3}>
+        <Grid item xs={12} sm={6} md={2}>
           <FormControl fullWidth size="small">
             <InputLabel id="cliente-select-label">Cliente</InputLabel>
             <Select
@@ -461,11 +519,12 @@ const Facturacion = () => {
                 labelId="mes-select-label"
                 value={mesPeriodo}
                 label="Mes"
-                onChange={(e) => setMesPeriodo(e.target.value)}
+                onChange={(e) => setMesPeriodo(Number(e.target.value))}
               >
-                <MenuItem value="Todos">Todos</MenuItem>
-                {meses.map((mes) => (
-                  <MenuItem key={mes} value={mes}>
+                <MenuItem value={0}>Todos</MenuItem>
+
+                {meses.map((mes, index) => (
+                  <MenuItem key={mes} value={index + 1}>
                     {mes}
                   </MenuItem>
                 ))}
@@ -484,7 +543,7 @@ const Facturacion = () => {
         </Grid>
 
         {/* Fechas */}
-        <Grid item xs={12} sm={6} md={4}>
+        <Grid item xs={12} sm={6} md={2}>
           <Box display="flex" gap={1}>
             <TextField
               label="Fecha Inicio"
@@ -544,9 +603,7 @@ const Facturacion = () => {
             onClick={() => handleCreateFactura()}
             disabled={!clienteId}
             fullWidth
-          >
-            Nueva Factura
-          </Button>
+          ></Button>
 
           <Button
             variant="outlined"
@@ -555,7 +612,7 @@ const Facturacion = () => {
             disabled={!clienteId}
             fullWidth
           >
-            Importar
+            Excel
             <input
               type="file"
               accept=".xlsx, .csv"
@@ -571,7 +628,7 @@ const Facturacion = () => {
             disabled={!clienteId}
             fullWidth
           >
-            Importar TXT
+            TXT
             <input
               type="file"
               accept=".txt"
@@ -594,7 +651,7 @@ const Facturacion = () => {
               )
             }
           >
-            Exportar Libro IVA (PDF)
+            IVA (PDF)
           </Button>
         </Grid>
       </Grid>
@@ -1041,56 +1098,52 @@ const Facturacion = () => {
             </Box>
             <Box sx={{ mt: 2, width: "100%" }}>
               <Grid container spacing={2}>
-                <Grid item xs={12} sm={4}>
+                <Grid item xs={12} sm={3}>
                   <TextField
                     disabled={isEditMode && editSection === "detalle"}
                     label="Exento"
                     type="number"
                     fullWidth
-                    onChange={(e) =>
-                      handleItemChange(
-                        idx,
-                        "excento",
-                        null,
-                        parseFloat(e.target.value)
-                      )
-                    }
+                    value={excento}
+                    onChange={(e) => setExcento(Number(e.target.value))}
                     size="small"
                   />
                 </Grid>
 
-                <Grid item xs={12} sm={4}>
+                <Grid item xs={12} sm={3}>
+                  <TextField
+                    disabled={isEditMode && editSection === "detalle"}
+                    label="Neto No Gravado"
+                    type="number"
+                    fullWidth
+                    value={netoNoGravados}
+                    onChange={(e) => setNetoNoGravados(Number(e.target.value))}
+                    size="small"
+                  />
+                </Grid>
+
+                <Grid item xs={12} sm={3}>
                   <TextField
                     disabled={isEditMode && editSection === "detalle"}
                     label="Impuestos Internos"
                     type="number"
                     fullWidth
+                    value={impuestosInternos}
                     onChange={(e) =>
-                      handleItemChange(
-                        idx,
-                        "impuestosInternos",
-                        null,
-                        parseFloat(e.target.value)
-                      )
+                      setImpuestosInternos(Number(e.target.value))
                     }
                     size="small"
                   />
                 </Grid>
 
-                <Grid item xs={12} sm={4}>
+                <Grid item xs={12} sm={3}>
                   <TextField
                     disabled={isEditMode && editSection === "detalle"}
                     label="ITC"
                     type="number"
                     fullWidth
-                    onChange={(e) =>
-                      handleItemChange(
-                        idx,
-                        "ITC",
-                        null,
-                        parseFloat(e.target.value)
-                      )
-                    }
+                    value={ITC}
+                    onChange={(e) => setITC(Number(e.target.value))}
                     size="small"
                   />
                 </Grid>
@@ -1127,15 +1180,35 @@ const Facturacion = () => {
               </Grid>
             </Box>
 
-            <TextField
-              label="Detalle"
-              name="detalle"
-              value={formFactura.detalle}
-              onChange={handleFormFacturaChange}
-              fullWidth
-              multiline
-              size="small"
-            />
+            <Box sx={{ mt: 2, width: "100%" }}>
+              <Grid container spacing={2}>
+                <Grid item xs={12} sm={6}>
+                  <TextField
+                    label="Detalle"
+                    name="detalle"
+                    value={formFactura.detalle}
+                    onChange={handleFormFacturaChange}
+                    fullWidth
+                    multiline
+                    size="small"
+                  />
+                </Grid>
+
+                <Grid item xs={12} sm={6}>
+                  <TextField
+                    disabled={isEditMode && editSection === "detalle"}
+                    label="Monto Total"
+                    type="number"
+                    name="monto_total"
+                    value={formFactura.monto_total}
+                    fullWidth
+                    onChange={handleFormFacturaChange}
+                    size="small"
+                  />
+                </Grid>
+              </Grid>
+            </Box>
+
             {/* Items */}
             {!isEditMode && (
               <>
@@ -1159,7 +1232,18 @@ const Facturacion = () => {
                         <Grid item xs={12} sm={4}>
                           <FormControl size="small" fullWidth>
                             <InputLabel>Tipo IVA</InputLabel>
-                            <Select label="Tipo IVA" defaultValue="">
+                            <Select
+                              label="Tipo IVA"
+                              value={item.tipo}
+                              onChange={(e) =>
+                                handleArrayChange(
+                                  setItemsAlicuota,
+                                  idx,
+                                  "tipo",
+                                  e.target.value
+                                )
+                              }
+                            >
                               <MenuItem value="21">21%</MenuItem>
                               <MenuItem value="10.5">10.5%</MenuItem>
                               <MenuItem value="27">27%</MenuItem>
@@ -1173,6 +1257,15 @@ const Facturacion = () => {
                             label="Neto Gravado"
                             type="number"
                             size="small"
+                            value={item.netoGravado}
+                            onChange={(e) =>
+                              handleArrayChange(
+                                setItemsAlicuota,
+                                idx,
+                                "netoGravado",
+                                Number(e.target.value)
+                              )
+                            }
                           />
                         </Grid>
 
@@ -1182,6 +1275,15 @@ const Facturacion = () => {
                             label="IVA"
                             type="number"
                             size="small"
+                            value={item.iva}
+                            onChange={(e) =>
+                              handleArrayChange(
+                                setItemsAlicuota,
+                                idx,
+                                "iva",
+                                Number(e.target.value)
+                              )
+                            }
                           />
                         </Grid>
                       </Grid>
@@ -1231,7 +1333,18 @@ const Facturacion = () => {
                       <Grid item xs={12} sm={6}>
                         <FormControl fullWidth size="small">
                           <InputLabel>Tipo Percepción</InputLabel>
-                          <Select label="Tipo Percepción">
+                          <Select
+                            label="Tipo Percepción"
+                            value={item.tipo}
+                            onChange={(e) =>
+                              handleArrayChange(
+                                setItemsPercepciones,
+                                idx,
+                                "tipo",
+                                e.target.value
+                              )
+                            }
+                          >
                             <MenuItem value="IVA">IVA</MenuItem>
                             <MenuItem value="IIBB">IIBB</MenuItem>
                           </Select>
@@ -1244,6 +1357,15 @@ const Facturacion = () => {
                           label="Monto"
                           type="number"
                           size="small"
+                          value={item.monto}
+                          onChange={(e) =>
+                            handleArrayChange(
+                              setItemsPercepciones,
+                              idx,
+                              "monto",
+                              Number(e.target.value)
+                            )
+                          }
                         />
                       </Grid>
                     </Grid>
@@ -1263,7 +1385,7 @@ const Facturacion = () => {
                   variant="outlined"
                   onClick={() =>
                     addItem(setItemsPercepciones, {
-                      tiposPercepcion: "",
+                      tipo: "",
                       monto: 0,
                     })
                   }
@@ -1290,7 +1412,18 @@ const Facturacion = () => {
                       <Grid item xs={12} sm={6}>
                         <FormControl fullWidth size="small">
                           <InputLabel>Tipo Retención</InputLabel>
-                          <Select label="Tipo Retención">
+                          <Select
+                            label="Tipo Retención"
+                            value={item.tipo}
+                            onChange={(e) =>
+                              handleArrayChange(
+                                setItemsRetenciones,
+                                idx,
+                                "tipo",
+                                e.target.value
+                              )
+                            }
+                          >
                             <MenuItem value="IVA">IVA</MenuItem>
                             <MenuItem value="IIBB">IIBB</MenuItem>
                           </Select>
@@ -1302,6 +1435,15 @@ const Facturacion = () => {
                           label="Monto"
                           type="number"
                           size="small"
+                          value={item.monto}
+                          onChange={(e) =>
+                            handleArrayChange(
+                              setItemsRetenciones,
+                              idx,
+                              "monto",
+                              Number(e.target.value)
+                            )
+                          }
                         />
                       </Grid>
                     </Grid>
@@ -1320,7 +1462,7 @@ const Facturacion = () => {
                   variant="outlined"
                   onClick={() =>
                     addItem(setItemsRetenciones, {
-                      tiposRetencion: "",
+                      tipo: "",
                       monto: 0,
                     })
                   }

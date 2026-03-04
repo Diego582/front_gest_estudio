@@ -4,11 +4,11 @@ import apiUrl from "../../utils/apiUrl";
 
 // FETCH items por factura_id
 export const fetchItemsFactura = createAsyncThunk(
-  "itemFactura/fetchByFactura",
+  "itemsfacturas/fetchByFactura",
   async ({ facturaId }) => {
     try {
       const response = await axios.get(
-        `${apiUrl}itemfactura?factura_id=${facturaId}`
+        `${apiUrl}itemsfacturas?factura_id=${facturaId}`
       );
       return response.data.response || [];
     } catch (error) {
@@ -19,10 +19,10 @@ export const fetchItemsFactura = createAsyncThunk(
 
 // CREATE
 export const createItemFactura = createAsyncThunk(
-  "itemFactura/create",
+  "itemsfacturas/create",
   async (itemData, { rejectWithValue }) => {
     try {
-      const response = await axios.post(`${apiUrl}itemfactura`, itemData);
+      const response = await axios.post(`${apiUrl}itemsfacturas`, itemData);
       return response.data.response;
     } catch (error) {
       return rejectWithValue(
@@ -34,10 +34,10 @@ export const createItemFactura = createAsyncThunk(
 
 // UPDATE
 export const updateItemFactura = createAsyncThunk(
-  "itemFactura/update",
+  "itemsfacturas/update",
   async ({ id, itemData }, { rejectWithValue }) => {
     try {
-      const response = await axios.put(`${apiUrl}itemfactura/${id}`, itemData);
+      const response = await axios.put(`${apiUrl}itemsfacturas/${id}`, itemData);
       return response.data.response;
     } catch (error) {
       return rejectWithValue(
@@ -49,10 +49,10 @@ export const updateItemFactura = createAsyncThunk(
 
 // DELETE
 export const deleteItemFactura = createAsyncThunk(
-  "itemFactura/delete",
+  "itemsfacturas/delete",
   async ({ id }, { rejectWithValue }) => {
     try {
-      const response = await axios.delete(`${apiUrl}itemfactura/${id}`);
+      const response = await axios.delete(`${apiUrl}itemsfacturas/${id}`);
       return response.data.response;
     } catch (error) {
       return rejectWithValue(
