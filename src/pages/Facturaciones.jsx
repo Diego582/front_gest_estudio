@@ -44,6 +44,7 @@ import ReceiptLongIcon from "@mui/icons-material/ReceiptLong";
 import EditNoteIcon from "@mui/icons-material/EditNote";
 import DeleteForeverIcon from "@mui/icons-material/DeleteForever";
 import { exportLibroIVA } from "../components/ExportLibroIVA";
+import EditIcon from "@mui/icons-material/Edit";
 
 const Facturacion = () => {
   const tiposIVA = [21, 10.5, 27];
@@ -97,7 +98,6 @@ const Facturacion = () => {
     cuit_dni: "",
     razon_social: "",
     monto_total: "",
-    periodo: { mes: mesPeriodo, anio: anioPeriodo },
   });
   const [itemsAlicuota, setItemsAlicuota] = useState([]);
   const [itemsPercepciones, setItemsPercepciones] = useState([]);
@@ -106,11 +106,6 @@ const Facturacion = () => {
   const [impuestosInternos, setImpuestosInternos] = useState(0);
   const [ITC, setITC] = useState(0);
   const [netoNoGravados, setNetoNoGravados] = useState(0);
-  console.log(facturas, "facturas");
-  console.log(itemsAlicuota, "itemsAlicuota");
-  console.log(itemsPercepciones, "itemsPercepciones");
-  console.log(itemsRetenciones, "itemsRetenciones");
-  console.log(anioPeriodo, "anioPeriodo");
 
   // Agrupación por fecha (simplificada)
 
@@ -261,7 +256,14 @@ const Facturacion = () => {
   // Calculamos la diferencia
   resumen.diferencia = resumen.montoTotal - resumen.montoDesdeItems;
 
-  console.log(filteredFacturas, "filteredFacturas");
+  const calcularIVA = (neto, alicuota) => {
+    const n = Number(neto);
+    const a = Number(alicuota);
+
+    if (!n || !a) return "";
+
+    return Number((n * (a / 100)).toFixed(2));
+  };
 
   // Carga clientes al montar
   useEffect(() => {
@@ -287,7 +289,17 @@ const Facturacion = () => {
   // Form cambios
   const handleFormFacturaChange = (e) => {
     const { name, value } = e.target;
-    setFormFactura((prev) => ({ ...prev, [name]: value }));
+
+    const numericFields = ["monto_total", "punto_venta", "numero"];
+
+    setFormFactura((prev) => ({
+      ...prev,
+      [name]: numericFields.includes(name)
+        ? value === ""
+          ? ""
+          : Number(value)
+        : value,
+    }));
   };
 
   // Items dinámicos
@@ -313,9 +325,18 @@ const Facturacion = () => {
 
   // Submit form
   const handleSubmit = async () => {
+    console.log(formFactura, "esto es formFactura antes de enviar");
+    const periodo = {
+      mes: mesPeriodo,
+      anio: anioPeriodo,
+    };
+    const facturaData = {
+      ...formFactura,
+      periodo,
+    };
     try {
       const facturaResponse = await dispatch(
-        createFactura(formFactura)
+        createFactura(facturaData)
       ).unwrap();
 
       const facturaId = facturaResponse._id;
@@ -331,6 +352,8 @@ const Facturacion = () => {
         netoNoGravados,
         ITC,
       };
+
+      console.log(itemFactura, "esto es itemFactura antes de enviar");
 
       await dispatch(createItemFactura(itemFactura)).unwrap();
 
@@ -479,7 +502,6 @@ const Facturacion = () => {
     });
   };
 
-  console.log(clientes, "esto es clientes");
   return (
     <Container
       maxWidth="lg"
@@ -1193,17 +1215,17 @@ const Facturacion = () => {
                     size="small"
                   />
                 </Grid>
-
                 <Grid item xs={12} sm={6}>
                   <TextField
                     disabled={isEditMode && editSection === "detalle"}
                     label="Monto Total"
                     type="number"
                     name="monto_total"
-                    value={formFactura.monto_total}
+                    value={formFactura.monto_total ?? ""}
                     fullWidth
-                    onChange={handleFormFacturaChange}
                     size="small"
+                    inputProps={{ step: "0.01" }}
+                    onChange={handleFormFacturaChange}
                   />
                 </Grid>
               </Grid>
@@ -1257,34 +1279,63 @@ const Facturacion = () => {
                             label="Neto Gravado"
                             type="number"
                             size="small"
-                            value={item.netoGravado}
-                            onChange={(e) =>
-                              handleArrayChange(
-                                setItemsAlicuota,
-                                idx,
-                                "netoGravado",
-                                Number(e.target.value)
-                              )
-                            }
+                            inputProps={{ step: "0.01" }}
+                            value={item.netoGravado ?? ""}
+                            onChange={(e) => {
+                              const neto = e.target.value;
+
+                              const ivaCalculado = calcularIVA(neto, item.tipo);
+
+                              setItemsAlicuota((prev) =>
+                                prev.map((it, i) =>
+                                  i === idx
+                                    ? {
+                                        ...it,
+                                        netoGravado: neto,
+                                        iva: ivaCalculado,
+                                      }
+                                    : it
+                                )
+                              );
+                            }}
                           />
                         </Grid>
 
                         <Grid item xs={12} sm={4}>
-                          <TextField
-                            fullWidth
-                            label="IVA"
-                            type="number"
-                            size="small"
-                            value={item.iva}
-                            onChange={(e) =>
-                              handleArrayChange(
-                                setItemsAlicuota,
-                                idx,
-                                "iva",
-                                Number(e.target.value)
-                              )
-                            }
-                          />
+                          <Box sx={{ display: "flex", gap: 1 }}>
+                            <TextField
+                              fullWidth
+                              label="IVA"
+                              type="number"
+                              size="small"
+                              inputProps={{ step: "0.01" }}
+                              value={item.iva ?? ""}
+                              disabled={!item.ivaEditable}
+                              onChange={(e) =>
+                                handleArrayChange(
+                                  setItemsAlicuota,
+                                  idx,
+                                  "iva",
+                                  e.target.value
+                                )
+                              }
+                            />
+
+                            <IconButton
+                              size="small"
+                              onClick={() =>
+                                setItemsAlicuota((prev) =>
+                                  prev.map((it, i) =>
+                                    i === idx
+                                      ? { ...it, ivaEditable: !it.ivaEditable }
+                                      : it
+                                  )
+                                )
+                              }
+                            >
+                              <EditIcon fontSize="small" />
+                            </IconButton>
+                          </Box>
                         </Grid>
                       </Grid>
                     </Box>
@@ -1307,6 +1358,7 @@ const Facturacion = () => {
                       tipo: "",
                       netoGravado: 0,
                       iva: 0,
+                      ivaEditable: false,
                     })
                   }
                   size="small"
