@@ -1409,13 +1409,14 @@ const Facturacion = () => {
                           label="Monto"
                           type="number"
                           size="small"
-                          value={item.monto}
+                          inputProps={{ step: "0.01" }}
+                          value={item.monto ?? ""}
                           onChange={(e) =>
                             handleArrayChange(
                               setItemsPercepciones,
                               idx,
                               "monto",
-                              Number(e.target.value)
+                              e.target.value
                             )
                           }
                         />
@@ -1481,19 +1482,21 @@ const Facturacion = () => {
                           </Select>
                         </FormControl>
                       </Grid>
+
                       <Grid item xs={12} sm={6}>
                         <TextField
                           fullWidth
                           label="Monto"
                           type="number"
                           size="small"
-                          value={item.monto}
+                          inputProps={{ step: "0.01", min: "0" }}
+                          value={item.monto ?? ""}
                           onChange={(e) =>
                             handleArrayChange(
                               setItemsRetenciones,
                               idx,
                               "monto",
-                              Number(e.target.value)
+                              e.target.value
                             )
                           }
                         />
