@@ -69,7 +69,8 @@ export const updateFactura = createAsyncThunk(
 // DELETE factura
 export const deleteFactura = createAsyncThunk(
   "facturas/delete",
-  async ({ id }, { rejectWithValue }) => {
+  async (id, { rejectWithValue }) => {
+    console.log(id, "id al llegar a la actoion");
     try {
       const response = await axios.delete(`${apiUrl}facturas/${id}`);
       return response.data.response;
@@ -100,13 +101,11 @@ export const uploadFacturasExcel = createAsyncThunk(
   "facturas/uploadExcel",
   async ({ file, clienteId, periodo }, { rejectWithValue }) => {
     try {
-     
       const formData = new FormData();
       formData.append("file", file);
       formData.append("clienteId", clienteId);
       formData.append("mes", periodo.mes);
       formData.append("anio", periodo.anio);
-     
 
       for (let [key, value] of formData.entries()) {
         console.log(key, value);

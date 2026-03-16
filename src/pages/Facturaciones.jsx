@@ -35,7 +35,7 @@ import {
 } from "../store/actions/facturas";
 import { fetchClientes } from "../store/actions/clientes";
 import { createItemFactura } from "../store/actions/itemsFacturas";
-import { createFactura } from "../store/actions/facturas";
+import { createFactura, deleteFactura } from "../store/actions/facturas";
 import { Add, UploadFile } from "@mui/icons-material";
 import { tiposComprobantes } from "../utils/tipoComprobantes";
 import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
@@ -360,16 +360,17 @@ const Facturacion = () => {
       // 🔥 recién acá cerramos y limpiamos
       setOpenForm(false);
 
-      setFormFactura({
+      setFormFactura((prev) => ({
+        ...prev,
         fecha: "",
         detalle: "",
-        tipo: tipoFactura,
         codigo_comprobante: "",
         punto_venta: "",
         numero: "",
         cuit_dni: "",
         razon_social: "",
-      });
+        monto_total: "",
+      }));
 
       setItemsAlicuota([]);
       setItemsPercepciones([]);
@@ -409,7 +410,15 @@ const Facturacion = () => {
 
     setOpenForm(true);
   };
-  const handleDeleteFactura = (f) => {};
+  const handleDeleteFactura = async (f) => {
+    try {
+      await dispatch(deleteFactura(f)).unwrap();
+
+      dispatch(fetchFacturas({ clienteId, tipo: tipoFactura }));
+    } catch (error) {
+      console.error("Error eliminando factura", error);
+    }
+  };
   const handleEdit = () => {
     if (!selectedFacturaId) return;
     if (!formFactura) return;
@@ -794,7 +803,7 @@ const Facturacion = () => {
                             <Tooltip title="Eliminar">
                               <IconButton
                                 color="error"
-                                onClick={() => handleDeleteFactura(f)}
+                                onClick={() => handleDeleteFactura(f._id)}
                               >
                                 <DeleteForeverIcon />
                               </IconButton>
@@ -1033,6 +1042,30 @@ const Facturacion = () => {
                 </Grid>
 
                 <Grid item xs={12} sm={4}>
+                  <TextField
+                    label="Mes"
+                    value={meses[mesPeriodo - 1]}
+                    fullWidth
+                    size="small"
+                    disabled
+                  />
+                </Grid>
+
+                <Grid item xs={12} sm={4}>
+                  <TextField
+                    label="Año"
+                    value={anioPeriodo}
+                    fullWidth
+                    size="small"
+                    disabled
+                  />
+                </Grid>
+              </Grid>
+            </Box>
+
+            <Box sx={{ mt: 2, width: "100%" }}>
+              <Grid container spacing={2}>
+                <Grid item xs={12} sm={6}>
                   <FormControl fullWidth>
                     <InputLabel id="tipo-select-label">Tipo</InputLabel>
                     <Select
@@ -1050,7 +1083,7 @@ const Facturacion = () => {
                   </FormControl>
                 </Grid>
 
-                <Grid item xs={12} sm={4}>
+                <Grid item xs={12} sm={6}>
                   <TextField
                     label="Fecha"
                     name="fecha"
@@ -1066,7 +1099,6 @@ const Facturacion = () => {
                 </Grid>
               </Grid>
             </Box>
-
             <Box sx={{ mt: 2, width: "100%" }}>
               <Grid container spacing={2}>
                 <Grid item xs={12} sm={4}>
