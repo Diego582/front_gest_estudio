@@ -333,6 +333,7 @@ const Facturacion = () => {
     };
     const facturaData = {
       ...formFactura,
+      tipo: tipoFactura,
       periodo,
     };
     try {
@@ -450,7 +451,7 @@ const Facturacion = () => {
       clienteId: formFactura.cliente_id,
       mes: mesPeriodo,
       anio: anioPeriodo,
-      tipo: formFactura.tipo,
+      tipo: tipoFactura,
     };
 
     try {
