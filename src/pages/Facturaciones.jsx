@@ -45,6 +45,8 @@ import EditNoteIcon from "@mui/icons-material/EditNote";
 import DeleteForeverIcon from "@mui/icons-material/DeleteForever";
 import { exportLibroIVA } from "../components/ExportLibroIVA";
 import EditIcon from "@mui/icons-material/Edit";
+import Swal from "sweetalert2";
+import { exportarIVA } from "../store/actions/iva";
 
 const Facturacion = () => {
   const tiposIVA = [21, 10.5, 27];
@@ -76,7 +78,7 @@ const Facturacion = () => {
     (state) => state.factura
   );
   const clientes = useSelector((state) => state.clientes.clientes);
-  console.log(loading, "loading");
+
   // Local state
   const [clienteId, setClienteId] = useState("");
   const [tipoFactura, setTipoFactura] = useState("emitida");
@@ -325,7 +327,6 @@ const Facturacion = () => {
 
   // Submit form
   const handleSubmit = async () => {
-    console.log(formFactura, "esto es formFactura antes de enviar");
     const periodo = {
       mes: mesPeriodo,
       anio: anioPeriodo,
@@ -352,8 +353,6 @@ const Facturacion = () => {
         netoNoGravados,
         ITC,
       };
-
-      console.log(itemFactura, "esto es itemFactura antes de enviar");
 
       await dispatch(createItemFactura(itemFactura)).unwrap();
 
@@ -410,39 +409,79 @@ const Facturacion = () => {
 
     setOpenForm(true);
   };
-  const handleDeleteFactura = async (f) => {
-    try {
-      await dispatch(deleteFactura(f)).unwrap();
 
-      dispatch(fetchFacturas({ clienteId, tipo: tipoFactura }));
-    } catch (error) {
-      console.error("Error eliminando factura", error);
+  const handleDeleteFactura = async (factura) => {
+    const result = await Swal.fire({
+      title: "¿Eliminar factura?",
+      text: `Cliente: ${factura.razon_social} Factura: ${factura.codigo_comprobante}-${factura.punto_venta}-${factura.numero}`,
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonColor: "#d33",
+      cancelButtonColor: "#3085d6",
+      confirmButtonText: "Sí, eliminar",
+      cancelButtonText: "Cancelar",
+    });
+
+    if (result.isConfirmed) {
+      try {
+        await dispatch(deleteFactura(factura._id)).unwrap();
+
+        await dispatch(fetchFacturas({ clienteId, tipo: tipoFactura }));
+
+        Swal.fire({
+          title: "Eliminada",
+          text: "La factura fue eliminada correctamente.",
+          icon: "success",
+          timer: 2000,
+          showConfirmButton: false,
+        });
+      } catch (error) {
+        Swal.fire({
+          title: "Error",
+          text: "No se pudo eliminar la factura.",
+          icon: "error",
+        });
+      }
     }
   };
-  const handleEdit = () => {
-    if (!selectedFacturaId) return;
-    if (!formFactura) return;
 
-    dispatch(
-      updateFactura({
-        id: selectedFacturaId,
-        facturaData: { detalle: formFactura.detalle },
-      })
-    )
-      .unwrap()
-      .then((updatedFactura) => {
-        // Cerrar el modal
-        setOpenForm(false);
+  const handleExportarIVA = async () => {
+    const clienteExport = {
+      clienteId: formFactura.cliente_id,
+      mes: mesPeriodo,
+      anio: anioPeriodo,
+      tipo: formFactura.tipo,
+    };
 
-        // Opcional: resetear el formulario
-        setFormFactura({ detalle: "" });
-        setSelectedFacturaId(null);
-      })
-      .catch((error) => {
-        console.error("Error al actualizar factura:", error);
-        // Opcional: mostrar alerta de error
-      });
+    try {
+      const blob = await dispatch(exportarIVA(clienteExport)).unwrap();
+
+      const { tipo, mes, anio } = clienteExport;
+
+      if (!(blob instanceof Blob)) {
+        console.error("No es un blob válido");
+        return;
+      }
+
+      const url = window.URL.createObjectURL(blob);
+
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `IVA_${tipo}_${anio}_${mes}.zip`;
+
+      // 🔥 CLAVE
+      document.body.appendChild(a);
+
+      a.click();
+
+      // 🔥 limpiar
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error("Error exportando IVA:", error);
+    }
   };
+
   const handleCreate = () => {};
 
   // Importar Excel o CSV
@@ -684,6 +723,14 @@ const Facturacion = () => {
           >
             IVA (PDF)
           </Button>
+          <Button
+            variant="contained"
+            color="success"
+            disabled={!clienteId}
+            onClick={() => handleExportarIVA()}
+          >
+            AFIP (TXT)
+          </Button>
         </Grid>
       </Grid>
 
@@ -803,7 +850,7 @@ const Facturacion = () => {
                             <Tooltip title="Eliminar">
                               <IconButton
                                 color="error"
-                                onClick={() => handleDeleteFactura(f._id)}
+                                onClick={() => handleDeleteFactura(f)}
                               >
                                 <DeleteForeverIcon />
                               </IconButton>

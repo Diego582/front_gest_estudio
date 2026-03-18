@@ -70,7 +70,7 @@ export const updateFactura = createAsyncThunk(
 export const deleteFactura = createAsyncThunk(
   "facturas/delete",
   async (id, { rejectWithValue }) => {
-    console.log(id, "id al llegar a la actoion");
+    
     try {
       const response = await axios.delete(`${apiUrl}facturas/${id}`);
       return response.data.response;
