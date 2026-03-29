@@ -70,7 +70,6 @@ export const updateFactura = createAsyncThunk(
 export const deleteFactura = createAsyncThunk(
   "facturas/delete",
   async (id, { rejectWithValue }) => {
-    
     try {
       const response = await axios.delete(`${apiUrl}facturas/${id}`);
       return response.data.response;
@@ -120,6 +119,7 @@ export const uploadFacturasExcel = createAsyncThunk(
         title: "Carga finalizada",
         html: `
           <p><b>Insertadas:</b> ${response.data.insertadas}</p>
+          <p><b>Actualizadas:</b> ${response.data.actualizadas}</p>
           <p><b>Duplicadas:</b> ${response.data.duplicadas}</p>
           <p><b>Descartadas B:</b> ${response.data.descartadasB}</p>
           <p><b>Total procesadas:</b> ${response.data.total}</p>
