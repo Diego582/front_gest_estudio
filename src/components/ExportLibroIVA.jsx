@@ -25,13 +25,57 @@ export const exportLibroIVA = (
     }).format(value);
   };
 
+  const getNombreMes = (mes) => {
+    const meses = [
+      "Enero",
+      "Febrero",
+      "Marzo",
+      "Abril",
+      "Mayo",
+      "Junio",
+      "Julio",
+      "Agosto",
+      "Septiembre",
+      "Octubre",
+      "Noviembre",
+      "Diciembre",
+    ];
+    return meses[mes - 1] || mes;
+  };
+
+  // === FORMATEADOR DE FECHA (SIN PROBLEMA DE ZONA HORARIA) ===
+  const formatFecha = (fecha) => {
+    if (!fecha) return "-";
+
+    // 🟢 Caso 1: formato ISO (YYYY-MM-DD o con T)
+    if (typeof fecha === "string" && fecha.includes("-")) {
+      const [anio, mes, dia] = fecha.split("T")[0].split("-");
+      return `${dia}/${mes}/${anio}`;
+    }
+
+    // 🟢 Caso 2: ya viene en formato DD/MM/YYYY
+    if (typeof fecha === "string" && fecha.includes("/")) {
+      return fecha;
+    }
+
+    // 🟢 Caso 3: fallback (Date)
+    const d = new Date(fecha);
+    if (isNaN(d)) return "-";
+
+    const dia = String(d.getDate()).padStart(2, "0");
+    const mes = String(d.getMonth() + 1).padStart(2, "0");
+    const anio = d.getFullYear();
+
+    return `${dia}/${mes}/${anio}`;
+  };
+
   // === ENCABEZADO PRINCIPAL ===
   doc.setFontSize(16);
   doc.text(
     `LIBRO IVA - ${
       tipoFactura === "emitida"
-        ? "Ventas - " + mesPeriodo + " del año " + anioPeriodo
-        : "Compras - " + mesPeriodo + " del año " + anioPeriodo
+        ? "Ventas - " + getNombreMes(mesPeriodo) + "  del año " + anioPeriodo
+        : "Compras - " + getNombreMes(mesPeriodo) + " del año " + anioPeriodo
     }`,
     14,
     15
@@ -68,7 +112,7 @@ export const exportLibroIVA = (
     });
 
     return [
-      new Date(f.fecha).toLocaleDateString(),
+      formatFecha(f.fecha), // ✅ FIX FECHA
       f.codigo_comprobante,
       f.punto_venta,
       f.numero,
@@ -117,40 +161,59 @@ export const exportLibroIVA = (
     margin: { bottom: 20 },
   });
 
-  // === TOTALES SOLO AL FINAL ===
+  // === RESUMEN EN 2 COLUMNAS (NUEVO) ===
   const finalY = doc.lastAutoTable.finalY + 10;
+
+  // Ancho de la página
+  const pageWidth = doc.internal.pageSize.getWidth();
+
+  // Ancho reducido del resumen
+  const tableWidth = 80;
+
+  // Posición a la derecha
+  const startX = pageWidth - tableWidth - 14;
+
   autoTable(doc, {
     startY: finalY,
+    startX: startX,
+    tableWidth: tableWidth,
+
+    head: [["Concepto", "Importe"]],
     body: [
-      [
-        "Totales",
-        "",
-        "",
-        "",
-        "",
-        "",
-        formatCurrency(resumen.netoGravado105),
-        formatCurrency(resumen.iva105),
-        formatCurrency(resumen.netoGravado21),
-        formatCurrency(resumen.iva21),
-        formatCurrency(resumen.netoGravado27),
-        formatCurrency(resumen.iva27),
-        formatCurrency(resumen.netoNoGravado),
-        formatCurrency(resumen.montoTotal),
-      ],
+      ["Neto Gravado 10.5%", formatCurrency(resumen.netoGravado105)],
+      ["IVA 10.5%", formatCurrency(resumen.iva105)],
+      ["Neto Gravado 21%", formatCurrency(resumen.netoGravado21)],
+      ["IVA 21%", formatCurrency(resumen.iva21)],
+      ["Neto Gravado 27%", formatCurrency(resumen.netoGravado27)],
+      ["IVA 27%", formatCurrency(resumen.iva27)],
+      ["No Gravado", formatCurrency(resumen.netoNoGravado)],
+      ["TOTAL", formatCurrency(resumen.montoTotal)],
     ],
-    styles: { fontSize: 9, fontStyle: "bold" },
-    theme: "plain",
+
+    styles: {
+      fontSize: 9,
+      cellPadding: 2,
+    },
+
+    headStyles: {
+      fillColor: [160, 160, 160],
+      textColor: 0,
+      halign: "center",
+    },
+
     columnStyles: {
-      0: { fontStyle: "bold", halign: "left" },
-      6: { halign: "right" },
-      7: { halign: "right" },
-      8: { halign: "right" },
-      9: { halign: "right" },
-      10: { halign: "right" },
-      11: { halign: "right" },
-      12: { halign: "right" },
-      13: { halign: "right" },
+      0: { halign: "left", cellWidth: 50 },
+      1: { halign: "right", cellWidth: 50 },
+    },
+
+    theme: "grid",
+
+    // 🔥 ESTILO PRO: destacar TOTAL
+    didParseCell: function (data) {
+      if (data.row.index === 7) {
+        data.cell.styles.fontStyle = "bold";
+        data.cell.styles.fontSize = 11;
+      }
     },
   });
 
