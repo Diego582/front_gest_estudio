@@ -1612,7 +1612,7 @@ const Facturacion = () => {
         <DialogActions>
           <Button onClick={() => setOpenForm(false)}>Cancelar</Button>
           {isEditMode ? (
-            <Button onClick={handleEdit}>Editar</Button>
+            <Button onClick={handleEditFactura}>Editar</Button>
           ) : (
             <Button onClick={handleSubmit}>Guardar</Button>
           )}
