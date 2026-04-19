@@ -446,6 +446,41 @@ const Facturacion = () => {
     }
   };
 
+  const handleUpdateFactura = async () => {
+    try {
+      const facturaData = {
+        ...formFactura,
+      };
+
+      await dispatch(
+        updateFactura({
+          id: selectedFacturaId,
+          data: facturaData,
+        })
+      ).unwrap();
+
+      const itemFactura = {
+        factura_id: selectedFacturaId,
+        descripcion: formFactura.detalle,
+        excento,
+        alicuotasIva: itemsAlicuota,
+        percepciones: itemsPercepciones,
+        retenciones: itemsRetenciones,
+        impuestosInternos,
+        netoNoGravados,
+        ITC,
+      };
+
+      await dispatch(updateItemFactura(itemFactura)).unwrap();
+
+      setOpenForm(false);
+
+      dispatch(fetchFacturas({ clienteId, tipo: tipoFactura }));
+    } catch (error) {
+      console.error("Error actualizando factura:", error);
+    }
+  };
+
   const handleExportarIVA = async () => {
     const clienteExport = {
       clienteId: formFactura.cliente_id,
@@ -1312,7 +1347,7 @@ const Facturacion = () => {
             </Box>
 
             {/* Items */}
-            {!isEditMode && (
+            {
               <>
                 <Typography variant="subtitle1" mt={2}>
                   Alicuotas Facturas
@@ -1606,13 +1641,13 @@ const Facturacion = () => {
                   Agregar Retencion
                 </Button>
               </>
-            )}
+            }
           </Box>
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setOpenForm(false)}>Cancelar</Button>
           {isEditMode ? (
-            <Button onClick={handleEditFactura}>Editar</Button>
+            <Button onClick={handleUpdateFactura}>Actualizar</Button>
           ) : (
             <Button onClick={handleSubmit}>Guardar</Button>
           )}
