@@ -43,6 +43,8 @@ import KeyboardArrowUpIcon from "@mui/icons-material/KeyboardArrowUp";
 import ReceiptLongIcon from "@mui/icons-material/ReceiptLong";
 import EditNoteIcon from "@mui/icons-material/EditNote";
 import DeleteForeverIcon from "@mui/icons-material/DeleteForever";
+import CheckCircleIcon from "@mui/icons-material/CheckCircle";
+import CancelIcon from "@mui/icons-material/Cancel";
 import { exportLibroIVA } from "../components/ExportLibroIVA";
 import EditIcon from "@mui/icons-material/Edit";
 import Swal from "sweetalert2";
@@ -88,7 +90,7 @@ const Facturacion = () => {
 
   const [anioPeriodo, setAnioPeriodo] = useState(hoy.getFullYear());
 
-  // Form state
+  // estados factura
   const [formFactura, setFormFactura] = useState({
     cliente_id: "",
     fecha: "",
@@ -120,6 +122,11 @@ const Facturacion = () => {
   const [selectedFacturaId, setSelectedFacturaId] = useState(null);
 
   const [editSection, setEditSection] = useState(null);
+
+  // nuevos validacion
+  const [tipoDocumento, setTipoDocumento] = useState("CUIT"); // "CUIT" | "DNI"
+  const [docValido, setDocValido] = useState(null); // null | true | false
+  const [clienteEncontrado, setClienteEncontrado] = useState(false);
 
   const toggleRow = (id) => {
     setOpenRows((prev) => ({ ...prev, [id]: !prev[id] }));
@@ -287,6 +294,73 @@ const Facturacion = () => {
       cliente_id: e.target.value,
     }));
   };
+  const validarCUIT = (cuit) => {
+    const clean = cuit.replace(/\D/g, "");
+    if (clean.length !== 11) return false;
+
+    const coef = [5, 4, 3, 2, 7, 6, 5, 4, 3, 2];
+    let suma = 0;
+
+    for (let i = 0; i < 10; i++) {
+      suma += parseInt(clean[i]) * coef[i];
+    }
+
+    const resto = suma % 11;
+    const digito = resto === 0 ? 0 : resto === 1 ? 9 : 11 - resto;
+
+    return digito === parseInt(clean[10]);
+  };
+
+  const validarDNI = (dni) => {
+    const clean = dni.replace(/\D/g, "");
+    return clean.length >= 7 && clean.length <= 9;
+  };
+
+  const handleDocumentoBlur = async () => {
+    const doc = formFactura.cuit_dni;
+
+    if (!doc) return;
+
+    let esValido = false;
+
+    if (tipoDocumento === "CUIT") {
+      esValido = validarCUIT(doc);
+    } else {
+      esValido = validarDNI(doc);
+    }
+
+    setDocValido(esValido);
+
+    if (!esValido) {
+      setClienteEncontrado(false);
+      return;
+    }
+
+    try {
+      const cliente = await dispatch(fetchClienteByDocumento(doc)).unwrap();
+
+      if (cliente) {
+        setClienteEncontrado(true);
+
+        setFormFactura((prev) => ({
+          ...prev,
+          razon_social: cliente.razon_social,
+        }));
+      } else {
+        setClienteEncontrado(false);
+
+        setFormFactura((prev) => ({
+          ...prev,
+          razon_social: "",
+        }));
+
+        // opcional
+        // setOpenClienteModal(true);
+      }
+    } catch (error) {
+      console.error(error);
+    }
+  };
 
   // Form cambios
   const handleFormFacturaChange = (e) => {
@@ -325,7 +399,7 @@ const Facturacion = () => {
     setState((prev) => prev.filter((_, i) => i !== index));
   };
 
-  // Submit form
+  // crear factura
   const handleSubmit = async () => {
     const periodo = {
       mes: mesPeriodo,
@@ -336,6 +410,8 @@ const Facturacion = () => {
       tipo: tipoFactura,
       periodo,
     };
+    console.log(facturaData, "esto es FacturaData");
+
     try {
       const facturaResponse = await dispatch(
         createFactura(facturaData)
@@ -346,15 +422,15 @@ const Facturacion = () => {
       const itemFactura = {
         factura_id: facturaId,
         descripcion: formFactura.detalle,
-        excento,
+        excento: Number(excento || 0),
         alicuotasIva: itemsAlicuota,
         percepciones: itemsPercepciones,
         retenciones: itemsRetenciones,
-        impuestosInternos,
-        netoNoGravados,
-        ITC,
+        impuestosInternos: Number(impuestosInternos || 0),
+        netoNoGravados: Number(netoNoGravados || 0),
+        ITC: Number(ITC || 0),
       };
-
+      console.log(itemFactura, "esto es itemFactura");
       await dispatch(createItemFactura(itemFactura)).unwrap();
 
       // 🔥 recién acá cerramos y limpiamos
@@ -400,14 +476,31 @@ const Facturacion = () => {
       numero: factura.numero || "",
       cuit_dni: factura.cuit_dni || "",
       razon_social: factura.razon_social || "",
+      monto_total: factura.monto_total || 0,
     });
+    const item = factura.items?.[0] || {};
+
+    // ⚠️ IMPORTANTE → usar string para inputs
+    setExcento(item.excento ?? "");
+    setNetoNoGravados(item.netoNoGravados ?? "");
+    setImpuestosInternos(item.impuestosInternos ?? "");
+    setITC(item.ITC ?? "");
 
     setItemsAlicuota(
       factura.items?.flatMap((i) => i.alicuotasIva || []) || [
         { tipo: "", netoGravado: 0, iva: 0 },
       ]
     );
-
+    setItemsPercepciones(
+      factura.items?.flatMap((i) => i.percepciones || []) || [
+        { tipo: "", monto: "" },
+      ]
+    );
+    setItemsRetenciones(
+      factura.items?.flatMap((i) => i.retenciones || []) || [
+        { tipo: "", monto: "" },
+      ]
+    );
     setOpenForm(true);
   };
 
@@ -1082,7 +1175,7 @@ const Facturacion = () => {
           </Paper>
         </>
       )}
-      {/* Modal Formulario */}
+      {/* Modal factura */}
       <Dialog
         open={openForm}
         onClose={() => setOpenForm(false)}
@@ -1242,7 +1335,7 @@ const Facturacion = () => {
                     type="number"
                     fullWidth
                     value={excento}
-                    onChange={(e) => setExcento(Number(e.target.value))}
+                    onChange={(e) => setExcento(e.target.value)}
                     size="small"
                   />
                 </Grid>
@@ -1254,7 +1347,7 @@ const Facturacion = () => {
                     type="number"
                     fullWidth
                     value={netoNoGravados}
-                    onChange={(e) => setNetoNoGravados(Number(e.target.value))}
+                    onChange={(e) => setNetoNoGravados(e.target.value)}
                     size="small"
                   />
                 </Grid>
@@ -1266,9 +1359,7 @@ const Facturacion = () => {
                     type="number"
                     fullWidth
                     value={impuestosInternos}
-                    onChange={(e) =>
-                      setImpuestosInternos(Number(e.target.value))
-                    }
+                    onChange={(e) => setImpuestosInternos(e.target.value)}
                     size="small"
                   />
                 </Grid>
@@ -1280,7 +1371,7 @@ const Facturacion = () => {
                     type="number"
                     fullWidth
                     value={ITC}
-                    onChange={(e) => setITC(Number(e.target.value))}
+                    onChange={(e) => setITC(e.target.value)}
                     size="small"
                   />
                 </Grid>
@@ -1289,20 +1380,57 @@ const Facturacion = () => {
 
             <Box sx={{ mt: 2, width: "100%" }}>
               <Grid container spacing={2}>
-                <Grid item xs={12} sm={6}>
+                <Grid item xs={12} sm={2}>
+                  <FormControl fullWidth size="small">
+                    <InputLabel>Tipo Documento</InputLabel>
+                    <Select
+                      value={tipoDocumento}
+                      label="Tipo Documento"
+                      onChange={(e) => {
+                        setTipoDocumento(e.target.value);
+                        setDocValido(null);
+                        setClienteEncontrado(false);
+
+                        setFormFactura((prev) => ({
+                          ...prev,
+                          cuit_dni: "",
+                          razon_social: "",
+                        }));
+                      }}
+                    >
+                      <MenuItem value="CUIT">CUIT / CUIL</MenuItem>
+                      <MenuItem value="DNI">DNI</MenuItem>
+                    </Select>
+                  </FormControl>
+                </Grid>
+                <Grid item xs={12} sm={5}>
                   <TextField
-                    disabled={isEditMode && editSection === "detalle"}
-                    label="CUIT/DNI"
+                    label={tipoDocumento === "CUIT" ? "CUIT/CUIL" : "DNI"}
                     name="cuit_dni"
                     value={formFactura.cuit_dni}
-                    onChange={handleFormFacturaChange}
+                    onChange={(e) => {
+                      handleFormFacturaChange(e);
+                      setDocValido(null);
+                      setClienteEncontrado(false);
+                    }}
+                    onBlur={handleDocumentoBlur}
                     fullWidth
                     size="small"
                     required
+                    InputProps={{
+                      endAdornment: (
+                        <>
+                          {docValido === true && (
+                            <CheckCircleIcon color="success" />
+                          )}
+                          {docValido === false && <CancelIcon color="error" />}
+                        </>
+                      ),
+                    }}
                   />
                 </Grid>
 
-                <Grid item xs={12} sm={6}>
+                <Grid item xs={12} sm={5}>
                   <TextField
                     disabled={isEditMode && editSection === "detalle"}
                     label="Razón Social"
