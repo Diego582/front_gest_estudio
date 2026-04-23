@@ -49,6 +49,7 @@ import { exportLibroIVA } from "../components/ExportLibroIVA";
 import EditIcon from "@mui/icons-material/Edit";
 import Swal from "sweetalert2";
 import { exportarIVA } from "../store/actions/iva";
+import { fetchPersonaByDocumento } from "../store/actions/personas";
 
 const Facturacion = () => {
   const tiposIVA = [21, 10.5, 27];
@@ -126,7 +127,13 @@ const Facturacion = () => {
   // nuevos validacion
   const [tipoDocumento, setTipoDocumento] = useState("CUIT"); // "CUIT" | "DNI"
   const [docValido, setDocValido] = useState(null); // null | true | false
-  const [clienteEncontrado, setClienteEncontrado] = useState(false);
+  const [personaEncontrada, setPersonaEncontrada] = useState(false);
+  const [openPersonaModal, setOpenPersonaModal] = useState(false);
+  const [personaForm, setPersonaForm] = useState({
+    tipoDocumento: "CUIT",
+    numeroDocumento: "",
+    razon_social: "",
+  });
 
   const toggleRow = (id) => {
     setOpenRows((prev) => ({ ...prev, [id]: !prev[id] }));
@@ -322,6 +329,7 @@ const Facturacion = () => {
     if (!doc) return;
 
     let esValido = false;
+    const docLimpio = doc.replace(/\D/g, "");
 
     if (tipoDocumento === "CUIT") {
       esValido = validarCUIT(doc);
@@ -337,25 +345,43 @@ const Facturacion = () => {
     }
 
     try {
-      const cliente = await dispatch(fetchClienteByDocumento(doc)).unwrap();
+      const persona = await dispatch(
+        fetchPersonaByDocumento({
+          tipo: tipoDocumento,
+          numero: docLimpio,
+        })
+      ).unwrap();
 
-      if (cliente) {
-        setClienteEncontrado(true);
+      if (persona) {
+        // ✅ existe
+        setPersonaEncontrada(true);
 
         setFormFactura((prev) => ({
           ...prev,
-          razon_social: cliente.razon_social,
+          razon_social: persona.razon_social,
         }));
       } else {
-        setClienteEncontrado(false);
+        // ❌ no existe
+        setPersonaEncontrada(false);
 
-        setFormFactura((prev) => ({
-          ...prev,
-          razon_social: "",
-        }));
+        const result = await Swal.fire({
+          title: "Persona no encontrada",
+          text: `No existe una persona con ese ${tipoDocumento}`,
+          icon: "warning",
+          showCancelButton: true,
+          confirmButtonText: "Crear persona",
+          cancelButtonText: "Cancelar",
+        });
 
-        // opcional
-        // setOpenClienteModal(true);
+        if (result.isConfirmed) {
+          setPersonaForm({
+            tipoDocumento,
+            numeroDocumento: docLimpio,
+            razon_social: "",
+          });
+
+          setOpenPersonaModal(true);
+        }
       }
     } catch (error) {
       console.error(error);

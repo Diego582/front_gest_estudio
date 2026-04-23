@@ -1,4 +1,8 @@
-body{
-    margin: 0;
-    padding: o;
+body {
+  margin: 0;
+  padding: o;
+}
+
+.swal-zindex {
+  z-index: 3000 !important;
 }

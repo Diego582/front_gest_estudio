@@ -3,6 +3,7 @@ import clienteReducer from "./reducer/cliente";
 import facturaReducer from "./reducer/factura";
 import itemFacturaReducer from "./reducer/itemFactura";
 import ivaReducer from "./reducer/iva";
+import personaReducer from "./reducer/persona";
 
 export default configureStore({
   reducer: {
@@ -10,5 +11,6 @@ export default configureStore({
     factura: facturaReducer,
     itemFactura: itemFacturaReducer,
     iva: ivaReducer,
+    perosonas: personaReducer,
   },
 });
