@@ -49,7 +49,7 @@ import { exportLibroIVA } from "../components/ExportLibroIVA";
 import EditIcon from "@mui/icons-material/Edit";
 import Swal from "sweetalert2";
 import { exportarIVA } from "../store/actions/iva";
-import { fetchPersonaByDocumento } from "../store/actions/personas";
+import { createPersona, fetchPersonaByDocumento } from "../store/actions/personas";
 
 const Facturacion = () => {
   const tiposIVA = [21, 10.5, 27];
@@ -321,6 +321,32 @@ const Facturacion = () => {
   const validarDNI = (dni) => {
     const clean = dni.replace(/\D/g, "");
     return clean.length >= 7 && clean.length <= 9;
+  };
+
+  const handleCreatePersona = async () => {
+    try {
+      if (!personaForm.razon_social.trim()) {
+        return Swal.fire("Error", "La razón social es obligatoria", "error");
+      }
+
+      const nuevaPersona = await dispatch(createPersona(personaForm)).unwrap();
+
+      // 🔥 AUTOCOMPLETAR FACTURA
+      setFormFactura((prev) => ({
+        ...prev,
+        razon_social: nuevaPersona.razon_social,
+        cuit_dni: nuevaPersona.numeroDocumento,
+      }));
+
+      setPersonaEncontrada(true);
+
+      setOpenPersonaModal(false);
+
+      Swal.fire("OK", "Persona creada correctamente", "success");
+    } catch (error) {
+      console.error(error);
+      Swal.fire("Error", "No se pudo crear la persona", "error");
+    }
   };
 
   const handleDocumentoBlur = async () => {
@@ -1805,6 +1831,59 @@ const Facturacion = () => {
           ) : (
             <Button onClick={handleSubmit}>Guardar</Button>
           )}
+        </DialogActions>
+      </Dialog>
+
+      {/* Modal crear cliente */}
+      <Dialog
+        open={openPersonaModal}
+        onClose={() => setOpenPersonaModal(false)}
+        maxWidth="sm"
+        fullWidth
+        sx={{ zIndex: 2000 }}
+      >
+        <DialogTitle>Nueva Persona</DialogTitle>
+
+        <DialogContent
+          sx={{ display: "flex", flexDirection: "column", gap: 2, mt: 1 }}
+        >
+          <TextField
+            label="Tipo Documento"
+            value={personaForm.tipoDocumento}
+            fullWidth
+            disabled
+            size="small"
+          />
+
+          <TextField
+            label="Número"
+            value={personaForm.numeroDocumento}
+            fullWidth
+            disabled
+            size="small"
+          />
+
+          <TextField
+            label="Razón Social"
+            value={personaForm.razon_social}
+            onChange={(e) =>
+              setPersonaForm((prev) => ({
+                ...prev,
+                razon_social: e.target.value,
+              }))
+            }
+            fullWidth
+            size="small"
+            required
+          />
+        </DialogContent>
+
+        <DialogActions>
+          <Button onClick={() => setOpenPersonaModal(false)}>Cancelar</Button>
+
+          <Button variant="contained" onClick={handleCreatePersona}>
+            Guardar
+          </Button>
         </DialogActions>
       </Dialog>
     </Container>
