@@ -646,15 +646,24 @@ const Facturacion = () => {
       ).unwrap();
 
       const itemFactura = {
-        factura_id: selectedFacturaId,
         descripcion: formFactura.detalle,
-        excento,
-        alicuotasIva: itemsAlicuota,
-        percepciones: itemsPercepciones,
-        retenciones: itemsRetenciones,
-        impuestosInternos,
-        netoNoGravados,
-        ITC,
+        excento: Number(excento || 0),
+        alicuotasIva: itemsAlicuota.map(({ tipo, netoGravado, iva }) => ({
+          tipo,
+          netoGravado: Number(netoGravado || 0),
+          iva: Number(iva || 0),
+        })),
+        percepciones: itemsPercepciones.map(({ tipo, monto }) => ({
+          tipo,
+          monto: Number(monto || 0),
+        })),
+        retenciones: itemsRetenciones.map(({ tipo, monto }) => ({
+          tipo,
+          monto: Number(monto || 0),
+        })),
+        impuestosInternos: Number(impuestosInternos || 0),
+        netoNoGravados: Number(netoNoGravados || 0),
+        ITC: Number(ITC || 0),
       };
 
       await dispatch(
@@ -669,6 +678,18 @@ const Facturacion = () => {
       dispatch(fetchFacturas({ clienteId, tipo: tipoFactura }));
     } catch (error) {
       console.error("Error actualizando factura:", error);
+
+      const message =
+        error?.message ||
+        error?.payload?.message ||
+        error?.payload?.error ||
+        "No se pudo actualizar la factura.";
+
+      Swal.fire({
+        title: "No se pudo actualizar",
+        text: message,
+        icon: "error",
+      });
     }
   };
 
