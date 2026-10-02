@@ -729,7 +729,6 @@ const Facturacion = () => {
       });
     }
   };
-
   const handleExportarIVA = async () => {
     const clienteExport = {
       clienteId: formFactura.cliente_id,
