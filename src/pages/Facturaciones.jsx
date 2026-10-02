@@ -34,7 +34,11 @@ import {
   updateFactura,
 } from "../store/actions/facturas";
 import { fetchClientes } from "../store/actions/clientes";
-import { createItemFactura, updateItemFactura } from "../store/actions/itemsFacturas";
+import {
+  createItemFactura,
+  updateItemFactura,
+  fetchItemsFactura,
+} from "../store/actions/itemsFacturas";
 import { createFactura, deleteFactura } from "../store/actions/facturas";
 import { Add, UploadFile } from "@mui/icons-material";
 import { tiposComprobantes } from "../utils/tipoComprobantes";
@@ -514,56 +518,79 @@ const Facturacion = () => {
       console.error("Error creando factura o item:", error);
     }
   };
-  const handleEditFactura = (factura) => {
-    setIsEditMode(true);
-    setEditSection("detalle");
-    setSelectedFacturaId(factura._id);
+  const handleEditFactura = async (factura) => {
+    try {
+      let item = factura.items?.[0];
 
-    const item = factura.items?.[0];
-    if (!item?._id) {
+      // El listado normalmente trae el ItemFactura mediante $lookup.
+      // Si por alguna razón no viene embebido, lo recuperamos directamente
+      // usando la relación factura_id, sin crear un nuevo detalle.
+      if (!item?._id) {
+        const items = await dispatch(
+          fetchItemsFactura({ facturaId: factura._id })
+        ).unwrap();
+
+        item = items?.[0];
+      }
+
+      if (!item?._id) {
+        Swal.fire({
+          title: "No se puede editar",
+          text: "La factura no tiene un detalle asociado para actualizar.",
+          icon: "error",
+        });
+        return;
+      }
+
+      setIsEditMode(true);
+      setEditSection("detalle");
+      setSelectedFacturaId(factura._id);
+      setSelectedItemFacturaId(item._id);
+
+      setFormFactura({
+        cliente_id: factura.cliente_id?._id || factura.cliente_id,
+        fecha: factura.fecha?.substring(0, 10) || "",
+        detalle: factura.detalle || "",
+        tipo: factura.tipo || "emitida",
+        codigo_comprobante: factura.codigo_comprobante || "",
+        punto_venta: factura.punto_venta || "",
+        numero: factura.numero || "",
+        cuit_dni: factura.cuit_dni || "",
+        razon_social: factura.razon_social || "",
+        monto_total: factura.monto_total || 0,
+      });
+
+      // IMPORTANTE: conservar los valores del detalle existente.
+      setExcento(item.excento ?? "");
+      setNetoNoGravados(item.netoNoGravados ?? "");
+      setImpuestosInternos(item.impuestosInternos ?? "");
+      setITC(item.ITC ?? "");
+
+      setItemsAlicuota(
+        item.alicuotasIva?.length
+          ? item.alicuotasIva
+          : [{ tipo: "", netoGravado: 0, iva: 0 }]
+      );
+      setItemsPercepciones(
+        item.percepciones?.length
+          ? item.percepciones
+          : [{ tipo: "", monto: "" }]
+      );
+      setItemsRetenciones(
+        item.retenciones?.length
+          ? item.retenciones
+          : [{ tipo: "", monto: "" }]
+      );
+
+      setOpenForm(true);
+    } catch (error) {
+      console.error("Error obteniendo detalle de factura:", error);
       Swal.fire({
-        title: "No se puede editar",
-        text: "La factura no tiene un detalle asociado para actualizar.",
+        title: "Error",
+        text: "No se pudo recuperar el detalle de la factura.",
         icon: "error",
       });
-      return;
     }
-    setSelectedItemFacturaId(item._id);
-
-    setFormFactura({
-      cliente_id: factura.cliente_id?._id || factura.cliente_id,
-      fecha: factura.fecha?.substring(0, 10) || "",
-      detalle: factura.detalle || "",
-      tipo: factura.tipo || "emitida",
-      codigo_comprobante: factura.codigo_comprobante || "",
-      punto_venta: factura.punto_venta || "",
-      numero: factura.numero || "",
-      cuit_dni: factura.cuit_dni || "",
-      razon_social: factura.razon_social || "",
-      monto_total: factura.monto_total || 0,
-    });
-    // ⚠️ IMPORTANTE → usar string para inputs
-    setExcento(item.excento ?? "");
-    setNetoNoGravados(item.netoNoGravados ?? "");
-    setImpuestosInternos(item.impuestosInternos ?? "");
-    setITC(item.ITC ?? "");
-
-    setItemsAlicuota(
-      factura.items?.flatMap((i) => i.alicuotasIva || []) || [
-        { tipo: "", netoGravado: 0, iva: 0 },
-      ]
-    );
-    setItemsPercepciones(
-      factura.items?.flatMap((i) => i.percepciones || []) || [
-        { tipo: "", monto: "" },
-      ]
-    );
-    setItemsRetenciones(
-      factura.items?.flatMap((i) => i.retenciones || []) || [
-        { tipo: "", monto: "" },
-      ]
-    );
-    setOpenForm(true);
   };
 
   const handleDeleteFactura = async (factura) => {
@@ -1322,8 +1349,8 @@ const Facturacion = () => {
                       label="Tipo"
                       onChange={handleFormFacturaChange}
                       size="small"
-                      disabled={isEditMode && editSection === "detalle"}
-                    >
+                      disabled={isEditMode}
+                      >
                       <MenuItem value="emitida">Emitida</MenuItem>
                       <MenuItem value="recibida">Recibida</MenuItem>
                     </Select>
@@ -1340,7 +1367,7 @@ const Facturacion = () => {
                     fullWidth
                     InputLabelProps={{ shrink: true }}
                     size="small"
-                    disabled={isEditMode && editSection === "detalle"}
+                    disabled={isEditMode}
                     required
                   />
                 </Grid>
@@ -1355,7 +1382,7 @@ const Facturacion = () => {
                     name="codigo_comprobante"
                     value={formFactura.codigo_comprobante}
                     onChange={handleFormFacturaChange}
-                    disabled={isEditMode && editSection === "detalle"}
+                    disabled={isEditMode}
                     fullWidth
                     size="small"
                     required
@@ -1377,7 +1404,7 @@ const Facturacion = () => {
                     onChange={handleFormFacturaChange}
                     fullWidth
                     size="small"
-                    disabled={isEditMode && editSection === "detalle"}
+                    disabled={isEditMode}
                     required
                   />
                 </Grid>
@@ -1390,8 +1417,8 @@ const Facturacion = () => {
                     value={formFactura.numero}
                     onChange={handleFormFacturaChange}
                     fullWidth
-                    disabled={isEditMode && editSection === "detalle"}
                     size="small"
+                    disabled={isEditMode}
                     required
                   />
                 </Grid>
@@ -1401,7 +1428,6 @@ const Facturacion = () => {
               <Grid container spacing={2}>
                 <Grid item xs={12} sm={3}>
                   <TextField
-                    disabled={isEditMode && editSection === "detalle"}
                     label="Exento"
                     type="number"
                     fullWidth
@@ -1413,7 +1439,6 @@ const Facturacion = () => {
 
                 <Grid item xs={12} sm={3}>
                   <TextField
-                    disabled={isEditMode && editSection === "detalle"}
                     label="Neto No Gravado"
                     type="number"
                     fullWidth
@@ -1425,7 +1450,6 @@ const Facturacion = () => {
 
                 <Grid item xs={12} sm={3}>
                   <TextField
-                    disabled={isEditMode && editSection === "detalle"}
                     label="Impuestos Internos"
                     type="number"
                     fullWidth
@@ -1437,7 +1461,6 @@ const Facturacion = () => {
 
                 <Grid item xs={12} sm={3}>
                   <TextField
-                    disabled={isEditMode && editSection === "detalle"}
                     label="ITC"
                     type="number"
                     fullWidth
@@ -1503,7 +1526,6 @@ const Facturacion = () => {
 
                 <Grid item xs={12} sm={5}>
                   <TextField
-                    disabled={isEditMode && editSection === "detalle"}
                     label="Razón Social"
                     name="razon_social"
                     value={formFactura.razon_social}
@@ -1531,7 +1553,6 @@ const Facturacion = () => {
                 </Grid>
                 <Grid item xs={12} sm={6}>
                   <TextField
-                    disabled={isEditMode && editSection === "detalle"}
                     label="Monto Total"
                     type="number"
                     name="monto_total"
@@ -1685,7 +1706,6 @@ const Facturacion = () => {
                 </Typography>
                 {itemsPercepciones.map((item, idx) => (
                   <Box
-                    disabled={isEditMode && editSection === "detalle"}
                     key={idx}
                     sx={{
                       border: "1px solid #ccc",
