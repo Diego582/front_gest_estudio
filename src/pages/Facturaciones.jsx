@@ -571,16 +571,8 @@ const Facturacion = () => {
           ? item.alicuotasIva
           : [{ tipo: "", netoGravado: 0, iva: 0 }]
       );
-      setItemsPercepciones(
-        item.percepciones?.length
-          ? item.percepciones
-          : [{ tipo: "", monto: "" }]
-      );
-      setItemsRetenciones(
-        item.retenciones?.length
-          ? item.retenciones
-          : [{ tipo: "", monto: "" }]
-      );
+      setItemsPercepciones(item.percepciones?.length ? item.percepciones : []);
+      setItemsRetenciones(item.retenciones?.length ? item.retenciones : []);
 
       setOpenForm(true);
     } catch (error) {
@@ -645,22 +637,67 @@ const Facturacion = () => {
         })
       ).unwrap();
 
+      const alicuotasValidas = itemsAlicuota
+        .filter((item) => {
+          const tipo = String(item.tipo ?? "").trim();
+          const neto = Number(item.netoGravado || 0);
+          const iva = Number(item.iva || 0);
+          return tipo || neto !== 0 || iva !== 0;
+        })
+        .map(({ tipo, netoGravado, iva }) => ({
+          tipo: String(tipo ?? "").trim(),
+          netoGravado: Number(netoGravado || 0),
+          iva: Number(iva || 0),
+        }));
+
+      const percepcionesValidas = itemsPercepciones
+        .filter((item) => {
+          const tipo = String(item.tipo ?? "").trim();
+          const monto = Number(item.monto || 0);
+          return tipo || monto !== 0;
+        })
+        .map(({ tipo, monto }) => ({
+          tipo: String(tipo ?? "").trim(),
+          monto: Number(monto || 0),
+        }));
+
+      const retencionesValidas = itemsRetenciones
+        .filter((item) => {
+          const tipo = String(item.tipo ?? "").trim();
+          const monto = Number(item.monto || 0);
+          return tipo || monto !== 0;
+        })
+        .map(({ tipo, monto }) => ({
+          tipo: String(tipo ?? "").trim(),
+          monto: Number(monto || 0),
+        }));
+
+      // No permitimos guardar un concepto con importe pero sin tipo.
+      const alicuotaInvalida = alicuotasValidas.some(
+        (item) => !item.tipo
+      );
+      const percepcionInvalida = percepcionesValidas.some(
+        (item) => !item.tipo
+      );
+      const retencionInvalida = retencionesValidas.some(
+        (item) => !item.tipo
+      );
+
+      if (alicuotaInvalida || percepcionInvalida || retencionInvalida) {
+        await Swal.fire({
+          title: "Datos incompletos",
+          text: "Hay una alícuota, percepción o retención con importe informado pero sin tipo.",
+          icon: "warning",
+        });
+        return;
+      }
+
       const itemFactura = {
         descripcion: formFactura.detalle,
         excento: Number(excento || 0),
-        alicuotasIva: itemsAlicuota.map(({ tipo, netoGravado, iva }) => ({
-          tipo,
-          netoGravado: Number(netoGravado || 0),
-          iva: Number(iva || 0),
-        })),
-        percepciones: itemsPercepciones.map(({ tipo, monto }) => ({
-          tipo,
-          monto: Number(monto || 0),
-        })),
-        retenciones: itemsRetenciones.map(({ tipo, monto }) => ({
-          tipo,
-          monto: Number(monto || 0),
-        })),
+        alicuotasIva: alicuotasValidas,
+        percepciones: percepcionesValidas,
+        retenciones: retencionesValidas,
         impuestosInternos: Number(impuestosInternos || 0),
         netoNoGravados: Number(netoNoGravados || 0),
         ITC: Number(ITC || 0),
