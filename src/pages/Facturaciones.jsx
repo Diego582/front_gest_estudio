@@ -630,13 +630,6 @@ const Facturacion = () => {
         throw new Error("Falta identificar la factura o su detalle para actualizar.");
       }
 
-      await dispatch(
-        updateFactura({
-          id: selectedFacturaId,
-          facturaData,
-        })
-      ).unwrap();
-
       const alicuotasValidas = itemsAlicuota
         .filter((item) => {
           const tipo = String(item.tipo ?? "").trim();
@@ -702,6 +695,13 @@ const Facturacion = () => {
         netoNoGravados: Number(netoNoGravados || 0),
         ITC: Number(ITC || 0),
       };
+
+      await dispatch(
+        updateFactura({
+          id: selectedFacturaId,
+          facturaData,
+        })
+      ).unwrap();
 
       await dispatch(
         updateItemFactura({
