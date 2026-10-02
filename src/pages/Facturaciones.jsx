@@ -34,7 +34,7 @@ import {
   updateFactura,
 } from "../store/actions/facturas";
 import { fetchClientes } from "../store/actions/clientes";
-import { createItemFactura } from "../store/actions/itemsFacturas";
+import { createItemFactura, updateItemFactura } from "../store/actions/itemsFacturas";
 import { createFactura, deleteFactura } from "../store/actions/facturas";
 import { Add, UploadFile } from "@mui/icons-material";
 import { tiposComprobantes } from "../utils/tipoComprobantes";
@@ -121,6 +121,7 @@ const Facturacion = () => {
 
   const [isEditMode, setIsEditMode] = useState(false);
   const [selectedFacturaId, setSelectedFacturaId] = useState(null);
+  const [selectedItemFacturaId, setSelectedItemFacturaId] = useState(null);
 
   const [editSection, setEditSection] = useState(null);
 
@@ -518,6 +519,17 @@ const Facturacion = () => {
     setEditSection("detalle");
     setSelectedFacturaId(factura._id);
 
+    const item = factura.items?.[0];
+    if (!item?._id) {
+      Swal.fire({
+        title: "No se puede editar",
+        text: "La factura no tiene un detalle asociado para actualizar.",
+        icon: "error",
+      });
+      return;
+    }
+    setSelectedItemFacturaId(item._id);
+
     setFormFactura({
       cliente_id: factura.cliente_id?._id || factura.cliente_id,
       fecha: factura.fecha?.substring(0, 10) || "",
@@ -530,8 +542,6 @@ const Facturacion = () => {
       razon_social: factura.razon_social || "",
       monto_total: factura.monto_total || 0,
     });
-    const item = factura.items?.[0] || {};
-
     // ⚠️ IMPORTANTE → usar string para inputs
     setExcento(item.excento ?? "");
     setNetoNoGravados(item.netoNoGravados ?? "");
@@ -597,10 +607,14 @@ const Facturacion = () => {
         ...formFactura,
       };
 
+      if (!selectedFacturaId || !selectedItemFacturaId) {
+        throw new Error("Falta identificar la factura o su detalle para actualizar.");
+      }
+
       await dispatch(
         updateFactura({
           id: selectedFacturaId,
-          data: facturaData,
+          facturaData,
         })
       ).unwrap();
 
@@ -616,7 +630,12 @@ const Facturacion = () => {
         ITC,
       };
 
-      await dispatch(updateItemFactura(itemFactura)).unwrap();
+      await dispatch(
+        updateItemFactura({
+          id: selectedItemFacturaId,
+          itemData: itemFactura,
+        })
+      ).unwrap();
 
       setOpenForm(false);
 
