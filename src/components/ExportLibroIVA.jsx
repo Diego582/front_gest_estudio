@@ -93,7 +93,8 @@ export const exportLibroIVA = (
       percepcionIVA: 0,
       percepcionIIBB: 0,
       percepcionGanancias: 0,
-      retenciones: 0,
+      retencionIVA: 0,
+      retencionIIBB: 0,
       impuestosInternos: 0,
       ITC: 0,
       exento: 0,
@@ -125,7 +126,17 @@ export const exportLibroIVA = (
         });
 
         item.retenciones?.forEach((r) => {
-          extras.retenciones += Number(r.monto || 0);
+          const tipo = String(r.tipo || "").toLowerCase();
+          const monto = Number(r.monto || 0);
+
+          if (tipo.includes("iva")) {
+            extras.retencionIVA += monto;
+          } else if (
+            tipo.includes("iibb") ||
+            tipo.includes("ingresos brutos")
+          ) {
+            extras.retencionIIBB += monto;
+          }
         });
       });
     });
@@ -156,7 +167,13 @@ export const exportLibroIVA = (
     let neto27 = 0;
     let iva27 = 0;
     let noGravado = 0;
+    let exento = 0;
+    let impuestosInternos = 0;
+    let ITC = 0;
     let percepcionIVA = 0;
+    let percepcionIIBB = 0;
+    let percepcionGanancias = 0;
+    let otrosTributos = 0;
 
     f.items?.forEach((item) => {
       item.alicuotasIva?.forEach((a) => {
@@ -182,12 +199,25 @@ export const exportLibroIVA = (
       });
 
       noGravado += Number(item.netoNoGravados || 0);
+      exento += Number(item.excento || item.exento || 0);
+      impuestosInternos += Number(item.impuestosInternos || 0);
+      ITC += Number(item.ITC || 0);
 
       item.percepciones?.forEach((p) => {
         const tipo = String(p.tipo || "").toLowerCase();
+        const monto = Number(p.monto || 0);
 
         if (tipo.includes("iva")) {
-          percepcionIVA += Number(p.monto || 0);
+          percepcionIVA += monto;
+        } else if (
+          tipo.includes("iibb") ||
+          tipo.includes("ingresos brutos")
+        ) {
+          percepcionIIBB += monto;
+        } else if (tipo.includes("ganancia")) {
+          percepcionGanancias += monto;
+        } else {
+          otrosTributos += monto;
         }
       });
     });
@@ -207,7 +237,13 @@ export const exportLibroIVA = (
       formatCurrency(neto27),
       formatCurrency(iva27),
       formatCurrency(noGravado),
+      formatCurrency(exento),
+      formatCurrency(impuestosInternos),
+      formatCurrency(ITC),
       formatCurrency(percepcionIVA),
+      formatCurrency(percepcionIIBB),
+      formatCurrency(percepcionGanancias),
+      formatCurrency(otrosTributos),
       formatCurrency(f.monto_total),
     ];
   });
@@ -232,7 +268,13 @@ export const exportLibroIVA = (
         "Neto 27%",
         "IVA 27%",
         "No Gravado",
+        "Exento",
+        "Imp. Internos",
+        "ITC",
         "Perc. IVA",
+        "Perc. IIBB",
+        "Perc. Ganancias",
+        "Otros Tributos",
         "Total",
       ],
     ],
@@ -275,9 +317,14 @@ export const exportLibroIVA = (
       10: { cellWidth: 17, halign: "right" },
       11: { cellWidth: 17, halign: "right" },
       12: { cellWidth: 17, halign: "right" },
-      13: { cellWidth: 17, halign: "right" },
-      14: { cellWidth: 17, halign: "right" },
-      15: { cellWidth: 20, halign: "right" },
+      13: { cellWidth: 15, halign: "right" },
+      14: { cellWidth: 15, halign: "right" },
+      15: { cellWidth: 15, halign: "right" },
+      16: { cellWidth: 15, halign: "right" },
+      17: { cellWidth: 15, halign: "right" },
+      18: { cellWidth: 15, halign: "right" },
+      19: { cellWidth: 15, halign: "right" },
+      20: { cellWidth: 20, halign: "right" },
     },
 
     didDrawPage: () => {
@@ -310,7 +357,8 @@ export const exportLibroIVA = (
       ["Percepción IVA", formatCurrency(extras.percepcionIVA)],
       ["Percepción IIBB", formatCurrency(extras.percepcionIIBB)],
       ["Percepción Ganancias", formatCurrency(extras.percepcionGanancias)],
-      ["Retenciones", formatCurrency(extras.retenciones)],
+      ["Retenciones IVA", formatCurrency(extras.retencionIVA)],
+      ["Retenciones IIBB", formatCurrency(extras.retencionIIBB)],
       ["Impuestos Internos", formatCurrency(extras.impuestosInternos)],
       ["ITC", formatCurrency(extras.ITC)],
       ["Exento", formatCurrency(extras.exento)],
