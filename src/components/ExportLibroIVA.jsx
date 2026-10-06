@@ -7,7 +7,8 @@ export const exportLibroIVA = (
   resumen,
   mesPeriodo,
   anioPeriodo,
-  tipoFactura
+  tipoFactura,
+  camposSeleccionados
 ) => {
   const doc = new jsPDF({
     orientation: "landscape",
@@ -248,37 +249,36 @@ export const exportLibroIVA = (
     ];
   });
 
+  const campos = [
+    "fecha", "comprobante", "puntoVenta", "numero", "cuit", "razonSocial",
+    "detalle", "neto105", "iva105", "neto21", "iva21", "neto27", "iva27",
+    "noGravado", "exento", "impuestosInternos", "ITC", "percepcionIVA",
+    "percepcionIIBB", "percepcionGanancias", "otrosTributos", "total"
+  ];
+
+  const headers = [
+    "Fecha", "Comp.", "PtoVta", "Número", "CUIT/DNI", "Razón Social",
+    "Detalle", "Neto 10.5%", "IVA 10.5%", "Neto 21%", "IVA 21%",
+    "Neto 27%", "IVA 27%", "No Gravado", "Exento", "Imp. Internos",
+    "ITC", "Perc. IVA", "Perc. IIBB", "Perc. Ganancias", "Otros Tributos",
+    "Total"
+  ];
+
+  const indices = (camposSeleccionados?.length ? camposSeleccionados : campos)
+    .map((campo) => campos.indexOf(campo))
+    .filter((index) => index >= 0);
+
+  const headersSeleccionados = indices.map((index) => headers[index]);
+  const rowsSeleccionadas = rows.map((row) =>
+    indices.map((index) => row[index])
+  );
+
   drawHeader();
 
   autoTable(doc, {
     startY: 32,
-    head: [
-      [
-        "Fecha",
-        "Comp.",
-        "PtoVta",
-        "Número",
-        "CUIT/DNI",
-        "Razón Social",
-        "Detalle",
-        "Neto 10.5%",
-        "IVA 10.5%",
-        "Neto 21%",
-        "IVA 21%",
-        "Neto 27%",
-        "IVA 27%",
-        "No Gravado",
-        "Exento",
-        "Imp. Internos",
-        "ITC",
-        "Perc. IVA",
-        "Perc. IIBB",
-        "Perc. Ganancias",
-        "Otros Tributos",
-        "Total",
-      ],
-    ],
-    body: rows,
+    head: [headersSeleccionados],
+    body: rowsSeleccionadas,
     theme: "striped",
 
     margin: {
@@ -303,30 +303,15 @@ export const exportLibroIVA = (
       fontStyle: "bold",
     },
 
-    tableWidth: 273,
-    columnStyles: {
-      0: { cellWidth: 13, halign: "center" },
-      1: { cellWidth: 18 },
-      2: { cellWidth: 9, halign: "center" },
-      3: { cellWidth: 12, halign: "right" },
-      4: { cellWidth: 20, halign: "center" },
-      5: { cellWidth: 24 },
-      6: { cellWidth: 14 },
-      7: { cellWidth: 12, halign: "right" },
-      8: { cellWidth: 12, halign: "right" },
-      9: { cellWidth: 12, halign: "right" },
-      10: { cellWidth: 12, halign: "right" },
-      11: { cellWidth: 12, halign: "right" },
-      12: { cellWidth: 12, halign: "right" },
-      13: { cellWidth: 12, halign: "right" },
-      14: { cellWidth: 12, halign: "right" },
-      15: { cellWidth: 12, halign: "right" },
-      16: { cellWidth: 12, halign: "right" },
-      17: { cellWidth: 12, halign: "right" },
-      18: { cellWidth: 12, halign: "right" },
-      19: { cellWidth: 12, halign: "right" },
-      20: { cellWidth: 12, halign: "right" },
-    },
+    tableWidth: "auto",
+    columnStyles: Object.fromEntries(
+      indices.map((_, index) => ({
+        [index]: {
+          halign: index >= 7 ? "right" : "left",
+          cellWidth: "auto",
+        },
+      }))
+    ),
 
     didDrawPage: () => {
       drawHeader();
