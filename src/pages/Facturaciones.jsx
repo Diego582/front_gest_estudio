@@ -122,6 +122,13 @@ const Facturacion = () => {
   const [fechaFin, setFechaFin] = useState("");
 
   const [openRows, setOpenRows] = useState({});
+  const [openLibroIVA, setOpenLibroIVA] = useState(false);
+  const [camposLibroIVA, setCamposLibroIVA] = useState([
+    "fecha", "comprobante", "puntoVenta", "numero", "cuit", "razonSocial",
+    "neto105", "iva105", "neto21", "iva21", "neto27", "iva27",
+    "noGravado", "exento", "percepcionIVA", "percepcionIIBB",
+    "retencionIVA", "retencionIIBB", "total"
+  ]);
 
   const [isEditMode, setIsEditMode] = useState(false);
   const [selectedFacturaId, setSelectedFacturaId] = useState(null);
@@ -834,6 +841,83 @@ const Facturacion = () => {
     });
   };
 
+  const camposDisponiblesIVA = [
+    ["fecha", "Fecha"], ["comprobante", "Comprobante"], ["puntoVenta", "Punto de venta"],
+    ["numero", "Número"], ["cuit", "CUIT/DNI"], ["razonSocial", "Razón social"],
+    ["detalle", "Detalle"], ["neto105", "Neto 10,5%"], ["iva105", "IVA 10,5%"],
+    ["neto21", "Neto 21%"], ["iva21", "IVA 21%"], ["neto27", "Neto 27%"],
+    ["iva27", "IVA 27%"], ["noGravado", "No gravado"], ["exento", "Exento"],
+    ["impuestosInternos", "Impuestos internos"], ["ITC", "ITC"],
+    ["percepcionIVA", "Percepción IVA"], ["percepcionIIBB", "Percepción IIBB"],
+    ["percepcionGanancias", "Percepción Ganancias"], ["otrosTributos", "Otros tributos"],
+    ["retencionIVA", "Retención IVA"], ["retencionIIBB", "Retención IIBB"],
+    ["total", "Total"]
+  ];
+
+  const toggleCampoLibroIVA = (campo) => {
+    setCamposLibroIVA((prev) =>
+      prev.includes(campo)
+        ? prev.filter((x) => x !== campo)
+        : [...prev, campo]
+    );
+  };
+
+  const exportarLibroIVASeleccionado = () => {
+    exportLibroIVA(
+      clientes.find((c) => c._id === clienteId),
+      filteredFacturas,
+      resumen,
+      mesPeriodo,
+      anioPeriodo,
+      tipoFactura,
+      camposLibroIVA
+    );
+    setOpenLibroIVA(false);
+  };
+
+  return (
+    <Dialog open={openLibroIVA} onClose={() => setOpenLibroIVA(false)} maxWidth="md" fullWidth>
+      <DialogTitle>Configurar informe Libro IVA</DialogTitle>
+      <DialogContent dividers>
+        <Typography variant="body2" sx={{ mb: 2 }}>
+          Seleccioná las columnas que querés incluir en el informe.
+        </Typography>
+        <Grid container spacing={1}>
+          {camposDisponiblesIVA.map(([campo, label]) => (
+            <Grid item xs={12} sm={6} md={4} key={campo}>
+              <Box
+                onClick={() => toggleCampoLibroIVA(campo)}
+                sx={{
+                  border: "1px solid",
+                  borderColor: camposLibroIVA.includes(campo) ? "primary.main" : "divider",
+                  borderRadius: 1,
+                  p: 1,
+                  cursor: "pointer",
+                  bgcolor: camposLibroIVA.includes(campo) ? "action.selected" : "background.paper",
+                }}
+              >
+                <Typography variant="body2">
+                  {camposLibroIVA.includes(campo) ? "☑" : "☐"} {label}
+                </Typography>
+              </Box>
+            </Grid>
+          ))}
+        </Grid>
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={() => setCamposLibroIVA(camposDisponiblesIVA.map(([campo]) => campo))}>
+          Seleccionar todo
+        </Button>
+        <Button onClick={() => setCamposLibroIVA(["fecha", "comprobante", "puntoVenta", "numero", "cuit", "razonSocial", "neto105", "iva105", "neto21", "iva21", "neto27", "iva27", "noGravado", "exento", "percepcionIVA", "percepcionIIBB", "retencionIVA", "retencionIIBB", "total"])}>
+          Predeterminado
+        </Button>
+        <Button onClick={() => setCamposLibroIVA([])}>Limpiar</Button>
+        <Button variant="contained" onClick={exportarLibroIVASeleccionado} disabled={!camposLibroIVA.length}>
+          Generar informe
+        </Button>
+      </DialogActions>
+    </Dialog>
+
   return (
     <Container
       maxWidth="lg"
@@ -994,16 +1078,7 @@ const Facturacion = () => {
           <Button
             variant="contained"
             color="secondary"
-            onClick={() =>
-              exportLibroIVA(
-                clientes.find((c) => c._id === clienteId),
-                filteredFacturas,
-                resumen,
-                mesPeriodo,
-                anioPeriodo,
-                tipoFactura
-              )
-            }
+            onClick={() => setOpenLibroIVA(true)}
           >
             IVA (PDF)
           </Button>
