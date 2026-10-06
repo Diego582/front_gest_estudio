@@ -175,6 +175,8 @@ export const exportLibroIVA = (
     let percepcionIIBB = 0;
     let percepcionGanancias = 0;
     let otrosTributos = 0;
+    let retencionIVA = 0;
+    let retencionIIBB = 0;
 
     f.items?.forEach((item) => {
       item.alicuotasIva?.forEach((a) => {
@@ -221,6 +223,20 @@ export const exportLibroIVA = (
           otrosTributos += monto;
         }
       });
+
+      item.retenciones?.forEach((r) => {
+        const tipo = String(r.tipo || "").toLowerCase();
+        const monto = Number(r.monto || 0);
+
+        if (tipo.includes("iva")) {
+          retencionIVA += monto;
+        } else if (
+          tipo.includes("iibb") ||
+          tipo.includes("ingresos brutos")
+        ) {
+          retencionIIBB += monto;
+        }
+      });
     });
 
     return [
@@ -245,6 +261,8 @@ export const exportLibroIVA = (
       formatCurrency(percepcionIIBB),
       formatCurrency(percepcionGanancias),
       formatCurrency(otrosTributos),
+      formatCurrency(retencionIVA),
+      formatCurrency(retencionIIBB),
       formatCurrency(f.monto_total),
     ];
   });
@@ -253,7 +271,8 @@ export const exportLibroIVA = (
     "fecha", "comprobante", "puntoVenta", "numero", "cuit", "razonSocial",
     "detalle", "neto105", "iva105", "neto21", "iva21", "neto27", "iva27",
     "noGravado", "exento", "impuestosInternos", "ITC", "percepcionIVA",
-    "percepcionIIBB", "percepcionGanancias", "otrosTributos", "total"
+    "percepcionIIBB", "percepcionGanancias", "otrosTributos",
+    "retencionIVA", "retencionIIBB", "total"
   ];
 
   const headers = [
