@@ -291,6 +291,12 @@ export const exportLibroIVA = (
   const rowsSeleccionadas = rows.map((row) =>
     indices.map((index) => row[index])
   );
+  // Al dividir una tabla muy ancha en bloques horizontales, repetir identificadores
+  // solo si el usuario los incluyó, sin reemplazar su selección.
+  const columnasIdentificadoras = ["fecha", "comprobante", "puntoVenta", "numero"];
+  const columnasRepetidas = columnasIdentificadoras
+    .map((campo) => indices.indexOf(campos.indexOf(campo)))
+    .filter((index) => index >= 0);
 
   drawHeader();
 
@@ -331,7 +337,7 @@ export const exportLibroIVA = (
 
     tableWidth: "auto",
     horizontalPageBreak: indices.length > 12,
-    horizontalPageBreakRepeat: indices.length > 12 ? [0, 1, 2, 3] : [],
+    horizontalPageBreakRepeat: indices.length > 12 ? columnasRepetidas : [],
     columnStyles: Object.fromEntries(
       indices.map((originalIndex, visibleIndex) => ({
         [visibleIndex]: {
