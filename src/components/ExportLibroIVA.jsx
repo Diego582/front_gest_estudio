@@ -276,11 +276,11 @@ export const exportLibroIVA = (
   ];
 
   const headers = [
-    "Fecha", "Comp.", "PtoVta", "Número", "CUIT/DNI", "Razón Social",
-    "Detalle", "Neto 10.5%", "IVA 10.5%", "Neto 21%", "IVA 21%",
-    "Neto 27%", "IVA 27%", "No Gravado", "Exento", "Imp. Internos",
-    "ITC", "Perc. IVA", "Perc. IIBB", "Perc. Ganancias", "Otros Tributos",
-    "Total"
+    "Fecha", "Comp.", "Pto. venta", "Número", "CUIT/DNI", "Razón social",
+    "Detalle", "Neto 10,5%", "IVA 10,5%", "Neto 21%", "IVA 21%",
+    "Neto 27%", "IVA 27%", "No gravado", "Exento", "Imp. internos",
+    "ITC", "Perc. IVA", "Perc. IIBB", "Perc. ganancias", "Otros tributos",
+    "Ret. IVA", "Ret. IIBB", "Total"
   ];
 
   const indices = (camposSeleccionados?.length ? camposSeleccionados : campos)
@@ -291,6 +291,12 @@ export const exportLibroIVA = (
   const rowsSeleccionadas = rows.map((row) =>
     indices.map((index) => row[index])
   );
+  // Al dividir una tabla muy ancha en bloques horizontales, repetir identificadores
+  // solo si el usuario los incluyó, sin reemplazar su selección.
+  const columnasIdentificadoras = ["fecha", "comprobante", "puntoVenta", "numero"];
+  const columnasRepetidas = columnasIdentificadoras
+    .map((campo) => indices.indexOf(campos.indexOf(campo)))
+    .filter((index) => index >= 0);
 
   drawHeader();
 
@@ -308,25 +314,34 @@ export const exportLibroIVA = (
     },
 
     styles: {
-      fontSize: 5.4,
-      cellPadding: 0.7,
+      fontSize: indices.length <= 10 ? 7.2 : indices.length <= 15 ? 6.4 : 5.8,
+      cellPadding: indices.length > 16 ? 0.55 : 0.9,
       overflow: "linebreak",
       valign: "middle",
+      lineColor: [215, 220, 225],
+      lineWidth: 0.1,
     },
 
     headStyles: {
-      fillColor: [70, 70, 70],
+      fillColor: [45, 65, 85],
       textColor: 255,
-      fontSize: 5.6,
+      fontSize: indices.length <= 10 ? 7 : indices.length <= 15 ? 6.2 : 5.6,
       halign: "center",
       fontStyle: "bold",
+      cellPadding: 1,
+    },
+
+    alternateRowStyles: {
+      fillColor: [245, 247, 249],
     },
 
     tableWidth: "auto",
+    horizontalPageBreak: indices.length > 12,
+    horizontalPageBreakRepeat: indices.length > 12 ? columnasRepetidas : [],
     columnStyles: Object.fromEntries(
-      indices.map((_, index) => ({
-        [index]: {
-          halign: index >= 7 ? "right" : "left",
+      indices.map((originalIndex, visibleIndex) => ({
+        [visibleIndex]: {
+          halign: originalIndex >= 7 ? "right" : "left",
           cellWidth: "auto",
         },
       }))

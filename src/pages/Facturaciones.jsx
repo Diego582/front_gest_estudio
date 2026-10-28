@@ -876,50 +876,89 @@ const Facturacion = () => {
   };
 
   return (
-    <Dialog open={openLibroIVA} onClose={() => setOpenLibroIVA(false)} maxWidth="md" fullWidth>
-      <DialogTitle>Configurar informe Libro IVA</DialogTitle>
-      <DialogContent dividers>
-        <Typography variant="body2" sx={{ mb: 2 }}>
-          Seleccioná las columnas que querés incluir en el informe.
-        </Typography>
-        <Grid container spacing={1}>
-          {camposDisponiblesIVA.map(([campo, label]) => (
-            <Grid item xs={12} sm={6} md={4} key={campo}>
-              <Box
-                onClick={() => toggleCampoLibroIVA(campo)}
-                sx={{
-                  border: "1px solid",
-                  borderColor: camposLibroIVA.includes(campo) ? "primary.main" : "divider",
-                  borderRadius: 1,
-                  p: 1,
-                  cursor: "pointer",
-                  bgcolor: camposLibroIVA.includes(campo) ? "action.selected" : "background.paper",
-                }}
-              >
-                <Typography variant="body2">
-                  {camposLibroIVA.includes(campo) ? "☑" : "☐"} {label}
-                </Typography>
-              </Box>
-            </Grid>
-          ))}
-        </Grid>
-      </DialogContent>
-      <DialogActions>
-        <Button onClick={() => setCamposLibroIVA(camposDisponiblesIVA.map(([campo]) => campo))}>
-          Seleccionar todo
-        </Button>
-        <Button onClick={() => setCamposLibroIVA(["fecha", "comprobante", "puntoVenta", "numero", "cuit", "razonSocial", "neto105", "iva105", "neto21", "iva21", "neto27", "iva27", "noGravado", "exento", "percepcionIVA", "percepcionIIBB", "retencionIVA", "retencionIIBB", "total"])}>
-          Predeterminado
-        </Button>
-        <Button onClick={() => setCamposLibroIVA([])}>Limpiar</Button>
-        <Button variant="contained" onClick={exportarLibroIVASeleccionado} disabled={!camposLibroIVA.length}>
-          Generar informe
-        </Button>
-      </DialogActions>
-    </Dialog>
+    <>
+      <Dialog
+        open={openLibroIVA}
+        onClose={() => setOpenLibroIVA(false)}
+        maxWidth="md"
+        fullWidth
+        aria-labelledby="libro-iva-dialog-title"
+      >
+        <DialogTitle id="libro-iva-dialog-title">
+          Configurar informe Libro IVA
+        </DialogTitle>
+        <DialogContent dividers>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+            Elegí las columnas que necesitás. El PDF ajustará la tabla según la cantidad seleccionada.
+          </Typography>
+          <Typography variant="subtitle2" sx={{ mb: 2 }}>
+            {camposLibroIVA.length} de {camposDisponiblesIVA.length} columnas seleccionadas
+          </Typography>
+          <Grid container spacing={1}>
+            {camposDisponiblesIVA.map(([campo, label]) => {
+              const seleccionado = camposLibroIVA.includes(campo);
+              return (
+                <Grid item xs={12} sm={6} md={4} key={campo}>
+                  <Box
+                    role="checkbox"
+                    aria-checked={seleccionado}
+                    tabIndex={0}
+                    onClick={() => toggleCampoLibroIVA(campo)}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter" || event.key === " ") {
+                        event.preventDefault();
+                        toggleCampoLibroIVA(campo);
+                      }
+                    }}
+                    sx={{
+                      border: "1px solid",
+                      borderColor: seleccionado ? "primary.main" : "divider",
+                      borderRadius: 1.5,
+                      p: 1.25,
+                      cursor: "pointer",
+                      bgcolor: seleccionado ? "action.selected" : "background.paper",
+                      transition: "background-color 120ms ease, border-color 120ms ease",
+                      "&:hover": { borderColor: "primary.main" },
+                      "&:focus-visible": {
+                        outline: "2px solid",
+                        outlineColor: "primary.main",
+                        outlineOffset: 2,
+                      },
+                    }}
+                  >
+                    <Typography variant="body2" sx={{ fontWeight: seleccionado ? 600 : 400 }}>
+                      {seleccionado ? "☑" : "☐"} {label}
+                    </Typography>
+                  </Box>
+                </Grid>
+              );
+            })}
+          </Grid>
+          <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 2 }}>
+            El resumen de impuestos se conserva al final del informe como sección independiente.
+          </Typography>
+        </DialogContent>
+        <DialogActions sx={{ flexWrap: "wrap", gap: 1, px: 3, py: 2 }}>
+          <Button onClick={() => setCamposLibroIVA(camposDisponiblesIVA.map(([campo]) => campo))}>
+            Seleccionar todo
+          </Button>
+          <Button onClick={() => setCamposLibroIVA(["fecha", "comprobante", "puntoVenta", "numero", "cuit", "razonSocial", "neto105", "iva105", "neto21", "iva21", "neto27", "iva27", "noGravado", "exento", "percepcionIVA", "percepcionIIBB", "retencionIVA", "retencionIIBB", "total"])}>
+            Predeterminado
+          </Button>
+          <Button onClick={() => setCamposLibroIVA([])} color="inherit">
+            Limpiar
+          </Button>
+          <Box sx={{ flexGrow: 1 }} />
+          <Button onClick={() => setOpenLibroIVA(false)} color="inherit">
+            Cancelar
+          </Button>
+          <Button variant="contained" onClick={exportarLibroIVASeleccionado} disabled={!camposLibroIVA.length}>
+            Generar informe PDF
+          </Button>
+        </DialogActions>
+      </Dialog>
 
-  return (
-    <Container
+      <Container
       maxWidth="lg"
       sx={{
         display: "flex",
@@ -2057,7 +2096,8 @@ const Facturacion = () => {
           </Button>
         </DialogActions>
       </Dialog>
-    </Container>
+      </Container>
+    </>
   );
 };
 
