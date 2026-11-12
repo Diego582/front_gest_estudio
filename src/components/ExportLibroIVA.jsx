@@ -247,6 +247,8 @@ export const exportLibroIVA = (
       f.cuit_dni || "-",
       f.razon_social || "-",
       f.detalle || "-",
+      // Clasificación explícita: no se infiere a partir del texto del detalle.
+      f.tipo === "recibida" && f.esGasto === true ? "Gasto" : "Sin clasificar",
       formatCurrency(neto105),
       formatCurrency(iva105),
       formatCurrency(neto21),
@@ -269,7 +271,7 @@ export const exportLibroIVA = (
 
   const campos = [
     "fecha", "comprobante", "puntoVenta", "numero", "cuit", "razonSocial",
-    "detalle", "neto105", "iva105", "neto21", "iva21", "neto27", "iva27",
+    "detalle", "clasificacion", "neto105", "iva105", "neto21", "iva21", "neto27", "iva27",
     "noGravado", "exento", "impuestosInternos", "ITC", "percepcionIVA",
     "percepcionIIBB", "percepcionGanancias", "otrosTributos",
     "retencionIVA", "retencionIIBB", "total"
@@ -277,7 +279,7 @@ export const exportLibroIVA = (
 
   const headers = [
     "Fecha", "Comp.", "Pto. venta", "Número", "CUIT/DNI", "Razón social",
-    "Detalle", "Neto 10,5%", "IVA 10,5%", "Neto 21%", "IVA 21%",
+    "Detalle", "Clasificación", "Neto 10,5%", "IVA 10,5%", "Neto 21%", "IVA 21%",
     "Neto 27%", "IVA 27%", "No gravado", "Exento", "Imp. internos",
     "ITC", "Perc. IVA", "Perc. IIBB", "Perc. ganancias", "Otros tributos",
     "Ret. IVA", "Ret. IIBB", "Total"
@@ -341,7 +343,7 @@ export const exportLibroIVA = (
     columnStyles: Object.fromEntries(
       indices.map((originalIndex, visibleIndex) => ({
         [visibleIndex]: {
-          halign: originalIndex >= 7 ? "right" : "left",
+          halign: originalIndex >= campos.indexOf("neto105") ? "right" : "left",
           cellWidth: "auto",
         },
       }))
