@@ -248,7 +248,7 @@ export const exportLibroIVA = (
       f.razon_social || "-",
       f.detalle || "-",
       // Clasificación explícita: no se infiere a partir del texto del detalle.
-      f.tipo === "recibida" && f.esGasto === true ? "Gasto" : "Sin clasificar",
+      f.tipo === "recibida" ? (f.esGasto === true ? "Gastos" : "Compras") : "Ventas",
       formatCurrency(neto105),
       formatCurrency(iva105),
       formatCurrency(neto21),
