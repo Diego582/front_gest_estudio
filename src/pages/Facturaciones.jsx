@@ -8,6 +8,8 @@ import {
   DialogContent,
   DialogTitle,
   FormControl,
+  FormControlLabel,
+  Checkbox,
   InputLabel,
   MenuItem,
   Select,
@@ -100,6 +102,7 @@ const Facturacion = () => {
     cliente_id: "",
     fecha: "",
     detalle: "",
+    esGasto: false,
     tipo: "emitida",
     codigo_comprobante: "",
     punto_venta: "",
@@ -472,6 +475,8 @@ const Facturacion = () => {
     const facturaData = {
       ...formFactura,
       tipo: tipoFactura,
+      // Solo los comprobantes recibidos pueden clasificarse como gasto.
+      esGasto: tipoFactura === "recibida" && formFactura.esGasto === true,
       periodo,
     };
     console.log(facturaData, "esto es FacturaData");
@@ -504,6 +509,7 @@ const Facturacion = () => {
         ...prev,
         fecha: "",
         detalle: "",
+        esGasto: false,
         codigo_comprobante: "",
         punto_venta: "",
         numero: "",
@@ -558,6 +564,8 @@ const Facturacion = () => {
         cliente_id: factura.cliente_id?._id || factura.cliente_id,
         fecha: factura.fecha?.substring(0, 10) || "",
         detalle: factura.detalle || "",
+        // Compatibilidad: documentos anteriores pueden no contener esGasto.
+        esGasto: factura.tipo === "recibida" && factura.esGasto === true,
         tipo: factura.tipo || "emitida",
         codigo_comprobante: factura.codigo_comprobante || "",
         punto_venta: factura.punto_venta || "",
@@ -631,6 +639,7 @@ const Facturacion = () => {
     try {
       const facturaData = {
         ...formFactura,
+        esGasto: formFactura.tipo === "recibida" && formFactura.esGasto === true,
       };
 
       if (!selectedFacturaId || !selectedItemFacturaId) {
@@ -795,6 +804,8 @@ const Facturacion = () => {
   };
   const handleCreateFactura = () => {
     setIsEditMode(false);
+    // Evitar que la clasificación de una edición anterior se arrastre a una factura nueva.
+    setFormFactura((prev) => ({ ...prev, esGasto: false, tipo: tipoFactura }));
     setOpenForm(true);
   };
 
@@ -1460,6 +1471,20 @@ const Facturacion = () => {
             sx={{ display: "flex", flexDirection: "column", gap: 2, mt: 1 }}
           >
             {/* Campos Factura */}
+            {/* Clasificación contable opcional; no afecta cálculos de IVA ni importes. */}
+            {formFactura.tipo === "recibida" && (
+              <FormControlLabel
+                control={
+                  <Checkbox
+                    checked={formFactura.esGasto === true}
+                    onChange={(event) =>
+                      setFormFactura((prev) => ({ ...prev, esGasto: event.target.checked }))
+                    }
+                  />
+                }
+                label="Clasificar como gasto"
+              />
+            )}
 
             <Box sx={{ mt: 2, width: "100%" }}>
               <Grid container spacing={2}>
