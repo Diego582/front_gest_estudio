@@ -1491,7 +1491,7 @@ const Facturacion = () => {
                           ...prev,
                           esGasto: marcado,
                           detalle: marcado
-                            ? (/\\bgastos\\b/i.test(detalle) ? detalle : sinSufijo ? `${sinSufijo}${sufijo}` : "Gastos")
+                            ? (/\bgastos\b/i.test(detalle) ? detalle : sinSufijo ? `${sinSufijo}${sufijo}` : "Gastos")
                             : sinSufijo,
                         };
                       })
