@@ -128,7 +128,7 @@ const Facturacion = () => {
   const [openLibroIVA, setOpenLibroIVA] = useState(false);
   const [camposLibroIVA, setCamposLibroIVA] = useState([
     "fecha", "comprobante", "puntoVenta", "numero", "cuit", "razonSocial",
-    "neto105", "iva105", "neto21", "iva21", "neto27", "iva27",
+    "clasificacion", "neto105", "iva105", "neto21", "iva21", "neto27", "iva27",
     "noGravado", "exento", "percepcionIVA", "percepcionIIBB",
     "retencionIVA", "retencionIIBB", "total"
   ]);
@@ -855,7 +855,7 @@ const Facturacion = () => {
   const camposDisponiblesIVA = [
     ["fecha", "Fecha"], ["comprobante", "Comprobante"], ["puntoVenta", "Punto de venta"],
     ["numero", "Número"], ["cuit", "CUIT/DNI"], ["razonSocial", "Razón social"],
-    ["detalle", "Detalle"], ["neto105", "Neto 10,5%"], ["iva105", "IVA 10,5%"],
+    ["detalle", "Detalle"], ["clasificacion", "Clasificación"], ["neto105", "Neto 10,5%"], ["iva105", "IVA 10,5%"],
     ["neto21", "Neto 21%"], ["iva21", "IVA 21%"], ["neto27", "Neto 27%"],
     ["iva27", "IVA 27%"], ["noGravado", "No gravado"], ["exento", "Exento"],
     ["impuestosInternos", "Impuestos internos"], ["ITC", "ITC"],
@@ -953,7 +953,7 @@ const Facturacion = () => {
           <Button onClick={() => setCamposLibroIVA(camposDisponiblesIVA.map(([campo]) => campo))}>
             Seleccionar todo
           </Button>
-          <Button onClick={() => setCamposLibroIVA(["fecha", "comprobante", "puntoVenta", "numero", "cuit", "razonSocial", "neto105", "iva105", "neto21", "iva21", "neto27", "iva27", "noGravado", "exento", "percepcionIVA", "percepcionIIBB", "retencionIVA", "retencionIIBB", "total"])}>
+          <Button onClick={() => setCamposLibroIVA(["fecha", "comprobante", "puntoVenta", "numero", "cuit", "razonSocial", "clasificacion", "neto105", "iva105", "neto21", "iva21", "neto27", "iva27", "noGravado", "exento", "percepcionIVA", "percepcionIIBB", "retencionIVA", "retencionIIBB", "total"])}>
             Predeterminado
           </Button>
           <Button onClick={() => setCamposLibroIVA([])} color="inherit">
