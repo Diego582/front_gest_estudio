@@ -1478,7 +1478,23 @@ const Facturacion = () => {
                   <Checkbox
                     checked={formFactura.esGasto === true}
                     onChange={(event) =>
-                      setFormFactura((prev) => ({ ...prev, esGasto: event.target.checked }))
+                      setFormFactura((prev) => {
+                        const marcado = event.target.checked;
+                        const detalle = String(prev.detalle || "");
+                        // Agregamos un sufijo reconocible sin sobrescribir el detalle original.
+                        // Al desmarcar solo quitamos el sufijo automático.
+                        const sufijo = " - Gastos";
+                        const sinSufijo = detalle.endsWith(sufijo)
+                          ? detalle.slice(0, -sufijo.length)
+                          : detalle === "Gastos" ? "" : detalle;
+                        return {
+                          ...prev,
+                          esGasto: marcado,
+                          detalle: marcado
+                            ? (/\\bgastos\\b/i.test(detalle) ? detalle : sinSufijo ? `${sinSufijo}${sufijo}` : "Gastos")
+                            : sinSufijo,
+                        };
+                      })
                     }
                   />
                 }
