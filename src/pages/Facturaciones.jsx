@@ -51,6 +51,7 @@ import EditNoteIcon from "@mui/icons-material/EditNote";
 import DeleteForeverIcon from "@mui/icons-material/DeleteForever";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import CancelIcon from "@mui/icons-material/Cancel";
+import { conciliarFactura, resumirFacturas } from "../utils/conciliacionFacturas";
 import { exportLibroIVA } from "../components/ExportLibroIVA";
 import EditIcon from "@mui/icons-material/Edit";
 import Swal from "sweetalert2";
@@ -218,74 +219,7 @@ const Facturacion = () => {
 
   // Inicializamos los totales
   // Resumen actualizado
-  const resumen = {
-    totalFacturas: filteredFacturas.length,
-    montoTotal: 0, // suma de monto_total de facturas
-    montoDesdeItems: 0, // suma calculada desde items
-    diferencia: 0, // nuevo campo
-    notasCredito: 0,
-    notasDebito: 0,
-    iva105: 0,
-    iva21: 0,
-    iva27: 0,
-    netoGravado105: 0,
-    netoGravado21: 0,
-    netoGravado27: 0,
-    netoNoGravado: 0,
-  };
-
-  filteredFacturas.forEach((f) => {
-    const montoFactura = f.monto_total || 0;
-    resumen.montoTotal += montoFactura;
-
-    if (f.tipo_comprobante === "NC") resumen.notasCredito += montoFactura;
-    if (f.tipo_comprobante === "ND") resumen.notasDebito += montoFactura;
-
-    let totalItemsFactura = 0;
-    f.items?.forEach((item) => {
-      const netoNoGravado = item.netoNoGravados || 0;
-      const impuestosInternos = item.impuestosInternos || 0;
-      const ITC = item.ITC || 0;
-
-      const totalAlicuotas =
-        item.alicuotasIva?.reduce(
-          (acc, a) => acc + ((a.netoGravado || 0) + (a.iva || 0)),
-          0
-        ) || 0;
-
-      totalItemsFactura +=
-        totalAlicuotas + netoNoGravado + impuestosInternos + ITC;
-
-      // Suma discriminada de IVA y neto gravado
-      item.alicuotasIva?.forEach((ali) => {
-        const tipoNormalized = ali.tipo
-          .replace("%", "")
-          .trim()
-          .replace(",", ".");
-        const neto = ali.netoGravado || 0;
-        const iva = ali.iva || 0;
-        if (tipoNormalized === "10.5") {
-          resumen.iva105 += iva;
-          resumen.netoGravado105 += neto;
-        }
-        if (tipoNormalized === "21") {
-          resumen.iva21 += iva;
-          resumen.netoGravado21 += neto;
-        }
-        if (tipoNormalized === "27") {
-          resumen.iva27 += iva;
-          resumen.netoGravado27 += neto;
-        }
-      });
-
-      resumen.netoNoGravado += netoNoGravado;
-    });
-
-    resumen.montoDesdeItems += totalItemsFactura;
-  });
-
-  // Calculamos la diferencia
-  resumen.diferencia = resumen.montoTotal - resumen.montoDesdeItems;
+  const resumen = resumirFacturas(filteredFacturas);
 
   const calcularIVA = (neto, alicuota) => {
     const n = Number(neto);
@@ -1338,20 +1272,7 @@ const Facturacion = () => {
                                 >
                                   <div>
                                     Suma del Item:{" "}
-                                    {f.items
-                                      ?.reduce(
-                                        (acc, item) =>
-                                          acc +
-                                          (item.netoNoGravados || 0) +
-                                          (item.alicuotasIva?.reduce(
-                                            (subAcc, a) =>
-                                              subAcc +
-                                              (a.netoGravado || 0) +
-                                              (a.iva || 0),
-                                            0
-                                          ) || 0),
-                                        0
-                                      )
+                                    {conciliarFactura(f).montoDesdeItems
                                       .toLocaleString("es-AR", {
                                         style: "currency",
                                         currency: "ARS",
@@ -1443,13 +1364,16 @@ const Facturacion = () => {
                 <Typography variant="caption">Diferencia</Typography>
                 <Typography
                   variant="body1"
-                  color={resumen.diferencia !== 0 ? "error" : "textPrimary"}
+                  color={resumen.pendientes > 0 ? "error" : "textPrimary"}
                 >
                   {resumen.diferencia?.toLocaleString("es-AR", {
                     style: "currency",
                     currency: "ARS",
                   })}
                 </Typography>
+                  <Typography variant="caption" display="block" color={resumen.pendientes ? "error" : "text.secondary"}>
+                    {resumen.pendientes} pendientes · Diferencia absoluta: {resumen.diferenciaAbsoluta.toLocaleString("es-AR", {style: "currency", currency: "ARS"})}
+                  </Typography>
               </Grid>
             </Grid>
           </Paper>
