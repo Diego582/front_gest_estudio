@@ -10,6 +10,7 @@ import {
   FormControl,
   FormControlLabel,
   Checkbox,
+  Chip,
   InputLabel,
   MenuItem,
   Select,
@@ -1132,12 +1133,19 @@ const Facturacion = () => {
                       <TableCell align="center">CUIT/DNI</TableCell>
                       <TableCell align="left">Razón Social</TableCell>
                       <TableCell align="right">Importe Total</TableCell>
+                      <TableCell align="center">Clasificación</TableCell>
+                      <TableCell align="right">Diferencia</TableCell>
+                      <TableCell align="center">Estado</TableCell>
                       <TableCell align="center">Acciones</TableCell>
                     </TableRow>
                   </TableHead>
 
                   <TableBody>
-                    {filteredFacturas.map((f) => (
+                    {filteredFacturas.map((f) => {
+                      const conciliacion = conciliarFactura(f);
+                      const tieneItems = Array.isArray(f.items) && f.items.length > 0;
+                      const formatoImporte = (n) => n.toLocaleString("es-AR", { style: "currency", currency: "ARS" });
+                      return (
                       <React.Fragment key={f._id}>
                         {/* Fila principal */}
                         <TableRow
@@ -1182,6 +1190,17 @@ const Facturacion = () => {
                             })}
                           </TableCell>
                           <TableCell align="center">
+                            <Chip size="small" variant="outlined" label={conciliacion.clasificacion} />
+                          </TableCell>
+                          <TableCell align="right" sx={{ color: conciliacion.conciliado ? "text.primary" : "error.main", whiteSpace: "nowrap" }}>
+                            {formatoImporte(conciliacion.diferencia)}
+                          </TableCell>
+                          <TableCell align="center">
+                            <Tooltip title={!tieneItems ? "No hay ítems asociados" : `Total discriminado: ${formatoImporte(conciliacion.montoDesdeItems)}`}>
+                              <Chip size="small" variant="outlined" color={conciliacion.conciliado ? "success" : "warning"} label={conciliacion.conciliado ? "Conciliado" : tieneItems ? "Pendiente" : "Sin ítems"} />
+                            </Tooltip>
+                          </TableCell>
+                          <TableCell align="center">
                             <Tooltip title="Editar">
                               <IconButton
                                 color="primary"
@@ -1205,7 +1224,7 @@ const Facturacion = () => {
                         <TableRow>
                           <TableCell
                             style={{ paddingBottom: 0, paddingTop: 0 }}
-                            colSpan={10}
+                            colSpan={13}
                           >
                             <Collapse
                               in={openRows[f._id]}
@@ -1271,20 +1290,27 @@ const Facturacion = () => {
                                   }}
                                 >
                                   <div>
-                                    Suma del Item:{" "}
-                                    {conciliarFactura(f).montoDesdeItems
+                                    Total discriminado:{" "}
+                                    {conciliacion.montoDesdeItems
                                       .toLocaleString("es-AR", {
                                         style: "currency",
                                         currency: "ARS",
                                       })}
                                   </div>
+                                  <div>Importe original: {formatoImporte(conciliacion.montoTotal)}</div>
+                                  <div>Percepciones incluidas: {formatoImporte(conciliacion.percepciones)}</div>
+                                  <div>Retenciones (informativas): {formatoImporte(conciliacion.retenciones)}</div>
+                                  <Typography color={conciliacion.conciliado ? "success.main" : "error.main"} fontWeight="bold">
+                                    Diferencia pendiente: {formatoImporte(conciliacion.diferencia)}
+                                  </Typography>
                                 </Box>
                               </Box>
                             </Collapse>
                           </TableCell>
                         </TableRow>
                       </React.Fragment>
-                    ))}
+                      );
+                    })}
                   </TableBody>
                 </Table>
               </TableContainer>
