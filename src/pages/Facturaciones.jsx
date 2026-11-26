@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState, useRef } from "react";
 import {
   Box,
   Button,
@@ -85,7 +85,7 @@ const Facturacion = () => {
   const [search, setSearch] = useState("");
 
   // Redux state
-  const { facturas, loading, error, messages } = useSelector(
+  const { facturas, loading, error, messages, solicitudFacturas, consultaCargada } = useSelector(
     (state) => state.factura
   );
   const clientes = useSelector((state) => state.clientes.clientes);
@@ -156,7 +156,15 @@ const Facturacion = () => {
     setOpenRows((prev) => ({ ...prev, [id]: !prev[id] }));
   };
 
-  const filteredFacturas = useMemo(() => facturas
+  const consulta = useMemo(() => ({ clienteId, tipo: tipoFactura, mes: mesPeriodo,
+    anio: anioPeriodo, fechaInicio, fechaFin }), [clienteId, tipoFactura, mesPeriodo, anioPeriodo, fechaInicio, fechaFin]);
+  const consultaRef = useRef(consulta);
+  consultaRef.current = consulta;
+  const claveConsulta = JSON.stringify(consulta);
+  const consultaLista = Boolean(clienteId) && consultaCargada === claveConsulta && !solicitudFacturas;
+  const recargarFacturas = () => consultaRef.current.clienteId && dispatch(fetchFacturas(consultaRef.current));
+
+  const filteredFacturas = useMemo(() => (consultaLista ? facturas : [])
     .filter((f) => clienteId && String(f?.cliente_id?._id ?? f?.cliente_id ?? "") === String(clienteId) && f.tipo === tipoFactura)
     .filter((f) => {
       if (!fechaInicio && !fechaFin) return true;
@@ -216,7 +224,7 @@ const Facturacion = () => {
         mesFacturaNumero === Number(mesPeriodo) &&
         Number(anioFactura) === Number(anioPeriodo)
       );
-    }), [facturas, clienteId, tipoFactura, fechaInicio, fechaFin, mesPeriodo, anioPeriodo]);
+    }), [facturas, consultaLista, clienteId, tipoFactura, fechaInicio, fechaFin, mesPeriodo, anioPeriodo]);
 
   // Inicializamos los totales
   // Resumen actualizado
@@ -239,9 +247,10 @@ const Facturacion = () => {
   // Carga facturas cuando cambia cliente o tipo
   useEffect(() => {
     if (clienteId) {
-      dispatch(fetchFacturas({ clienteId }));
+      const solicitud = dispatch(fetchFacturas(consulta));
+      return () => solicitud.abort();
     }
-  }, [clienteId, dispatch]);
+  }, [consulta, dispatch]);
 
   // Handlers para filtros
   const handleClienteChange = (e) => {
@@ -463,7 +472,7 @@ const Facturacion = () => {
       setNetoNoGravados(0);
       setITC(0);
 
-      dispatch(fetchFacturas({ clienteId, tipo: tipoFactura }));
+      recargarFacturas();
     } catch (error) {
       console.error("Error creando factura o item:", error);
     }
@@ -553,7 +562,7 @@ const Facturacion = () => {
       try {
         await dispatch(deleteFactura(factura._id)).unwrap();
 
-        await dispatch(fetchFacturas({ clienteId, tipo: tipoFactura }));
+        await recargarFacturas();
 
         Swal.fire({
           title: "Eliminada",
@@ -665,7 +674,7 @@ const Facturacion = () => {
 
       setOpenForm(false);
 
-      dispatch(fetchFacturas({ clienteId, tipo: tipoFactura }));
+      recargarFacturas();
     } catch (error) {
       console.error("Error actualizando factura:", error);
 
@@ -725,8 +734,7 @@ const Facturacion = () => {
   // Importar Excel o CSV
   const handleImport = (e) => {
     const file = e.target.files[0];
-    if (!file) {
-    } // Si no seleccionó archivo, no hace nada
+    if (!file || !clienteId) return;
 
     // Solo disparo la acción redux que ya maneja los Swal
     dispatch(
@@ -738,7 +746,7 @@ const Facturacion = () => {
           anio: Number(anioPeriodo),
         },
       })
-    );
+    ).then((action) => { if (uploadFacturasExcel.fulfilled.match(action)) recargarFacturas(); });
   };
   const handleCreateFactura = () => {
     setIsEditMode(false);
@@ -776,7 +784,10 @@ const Facturacion = () => {
       return;
     }
 
-    dispatch(uploadFacturasTxt({ ventasFile, alicuotasFile, clienteId }));
+    if (!clienteId) return;
+    dispatch(uploadFacturasTxt({ ventasFile, alicuotasFile, clienteId })).then((action) => {
+      if (uploadFacturasTxt.fulfilled.match(action)) recargarFacturas();
+    });
   };
 
   const handleArrayChange = (setter, index, field, value) => {
@@ -812,7 +823,7 @@ const Facturacion = () => {
   };
 
   const exportarLibroIVASeleccionado = () => {
-    if (!clienteId || loading) return;
+    if (!consultaLista || loading) return;
     exportLibroIVA(
       clientes.find((c) => c._id === clienteId),
       filteredFacturas,
