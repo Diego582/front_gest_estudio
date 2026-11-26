@@ -17,6 +17,8 @@ const initialState = {
   clientes: [],
   facturas: [],
   factura: null,
+  clienteConsulta: null,
+  solicitudFacturas: null,
   loading: false,
   error: null,
   messages: [],
@@ -39,15 +41,23 @@ const facturaReducer = createReducer(initialState, (builder) => {
     })
 
     // Carga de todas las Facturas
-    .addCase(fetchFacturas.pending, (state) => {
+    .addCase(fetchFacturas.pending, (state, action) => {
+      const cliente = String(action.meta.arg?.clienteId || "");
+      if (state.clienteConsulta !== cliente) state.facturas = [];
+      state.clienteConsulta = cliente;
+      state.solicitudFacturas = action.meta.requestId;
       state.loading = true;
       state.error = null;
     })
     .addCase(fetchFacturas.fulfilled, (state, action) => {
+      if (state.solicitudFacturas !== action.meta.requestId) return;
+      state.solicitudFacturas = null;
       state.loading = false;
       state.facturas = action.payload;
     })
     .addCase(fetchFacturas.rejected, (state, action) => {
+      if (state.solicitudFacturas !== action.meta.requestId) return;
+      state.solicitudFacturas = null;
       state.loading = false;
       state.error = action.error.message;
     })
@@ -73,7 +83,7 @@ const facturaReducer = createReducer(initialState, (builder) => {
     })
     .addCase(createFactura.fulfilled, (state, action) => {
       state.loading = false;
-      state.facturas.push(action.payload);
+      if (String(action.payload?.cliente_id || "") === state.clienteConsulta) state.facturas.push(action.payload);
       state.messages = ["Factura creada correctamente"];
     })
     .addCase(createFactura.rejected, (state, action) => {
@@ -88,7 +98,7 @@ const facturaReducer = createReducer(initialState, (builder) => {
     })
     .addCase(createItemFactura.fulfilled, (state, action) => {
       state.loading = false;
-      state.facturas.push(action.payload);
+      // Los ítems no son comprobantes; la recarga posterior incorpora su relación.
       state.messages = ["Factura con items creada correctamente"];
     })
     .addCase(createItemFactura.rejected, (state, action) => {
@@ -146,6 +156,7 @@ const facturaReducer = createReducer(initialState, (builder) => {
       state.error = null;
     })
     .addCase(uploadFacturasExcel.fulfilled, (state, action) => {
+      if (state.clienteConsulta !== String(action.meta.arg?.clienteId || "")) return;
       state.loading = false;
       state.facturas = action.payload; // 👈 reemplaza todo, evita duplicados
       state.messages = ["Facturas cargadas desde Excel correctamente"];
@@ -160,6 +171,7 @@ const facturaReducer = createReducer(initialState, (builder) => {
       state.error = null;
     })
     .addCase(uploadFacturasTxt.fulfilled, (state, action) => {
+      if (state.clienteConsulta !== String(action.meta.arg?.clienteId || "")) return;
       state.loading = false;
       state.facturas = action.payload; // 👈 reemplaza todo
       state.messages = ["Facturas cargadas desde TXT correctamente"];
