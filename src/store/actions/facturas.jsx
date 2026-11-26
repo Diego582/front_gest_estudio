@@ -3,6 +3,25 @@ import axios from "axios";
 import apiUrl from "../../utils/apiUrl";
 import Swal from "sweetalert2";
 
+// Caché de lectura, únicamente en memoria. Invalidación global conservadora.
+const cacheFacturas = new Map();
+const escrituras = new Set();
+let versionCache = 0;
+const TTL = 30000;
+const MAX_CONSULTAS = 8;
+const MAX_FACTURAS = 2000;
+const invalidarCache = () => { versionCache++; cacheFacturas.clear(); };
+
+export const facturaCacheMiddleware = () => next => action => {
+  const tipo = action.type || "";
+  if (/^(facturas\/(create|update|delete|uploadExcel|uploadTxt)|itemsfacturas\/(create|update|delete))\/(pending|fulfilled|rejected)$/.test(tipo)) {
+    invalidarCache();
+    if (tipo.endsWith("/pending")) escrituras.add(action.meta.requestId);
+    else escrituras.delete(action.meta.requestId);
+  }
+  return next(action);
+};
+
 // FETCH todas las facturas (filtradas por cliente si corresponde)
 export const fetchFacturas = createAsyncThunk(
   "facturas/fetchAll",
@@ -15,10 +34,26 @@ export const fetchFacturas = createAsyncThunk(
         if (value !== undefined && value !== null && value !== "") params.append(key, value);
       }
 
+      const clave = params.toString();
+      const version = versionCache;
+      const cacheable = Boolean(clienteId) && Boolean(tipo) && Number(mes) >= 1 && Number(mes) <= 12;
+      const entrada = cacheFacturas.get(clave);
+      if (cacheable && !escrituras.size && entrada && Date.now() - entrada.fecha < TTL && !signal.aborted) {
+        cacheFacturas.delete(clave);
+        cacheFacturas.set(clave, entrada);
+        return entrada.datos;
+      }
+      cacheFacturas.delete(clave);
       const response = await axios.get(
-        `${apiUrl}facturas?${params.toString()}`, { signal }
+        `${apiUrl}facturas?${clave}`, { signal }
       );
-      return response.data.response || [];
+      const datos = response.data.response || [];
+      if (cacheable && !signal.aborted && !escrituras.size && version === versionCache &&
+          Array.isArray(datos) && datos.length <= MAX_FACTURAS) {
+        cacheFacturas.set(clave, { fecha: Date.now(), datos });
+        while (cacheFacturas.size > MAX_CONSULTAS) cacheFacturas.delete(cacheFacturas.keys().next().value);
+      }
+      return datos;
     } catch (error) {
       if (error.response?.status === 404) return [];
       return rejectWithValue(error.response?.data || { message: error.message });
@@ -85,6 +120,9 @@ export const deleteFactura = createAsyncThunk(
 );
 
 export const bulkCreateFacturas = (facturas) => async (dispatch) => {
+  const escritura = Symbol();
+  escrituras.add(escritura);
+  invalidarCache();
   try {
     const response = await axios.post("/api/facturas/bulk", facturas);
     dispatch({
@@ -96,6 +134,9 @@ export const bulkCreateFacturas = (facturas) => async (dispatch) => {
       type: "BULK_CREATE_FACTURAS_FAIL",
       payload: error.response?.data?.message || error.message,
     });
+  } finally {
+    escrituras.delete(escritura);
+    invalidarCache();
   }
 };
 
