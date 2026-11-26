@@ -6,19 +6,22 @@ import Swal from "sweetalert2";
 // FETCH todas las facturas (filtradas por cliente si corresponde)
 export const fetchFacturas = createAsyncThunk(
   "facturas/fetchAll",
-  async ({ clienteId = "" } = {}) => {
+  async ({ clienteId = "", tipo, mes, anio, fechaInicio, fechaFin } = {}, { signal, rejectWithValue }) => {
     try {
       const params = new URLSearchParams();
 
       if (clienteId) params.append("cliente_id", clienteId);
+      for (const [key, value] of Object.entries({ tipo, mes, anio, fechaInicio, fechaFin })) {
+        if (value !== undefined && value !== null && value !== "") params.append(key, value);
+      }
 
       const response = await axios.get(
-        `${apiUrl}facturas?${params.toString()}`
+        `${apiUrl}facturas?${params.toString()}`, { signal }
       );
       return response.data.response || [];
     } catch (error) {
-      console.error("Error al obtener facturas:", error);
-      return [];
+      if (error.response?.status === 404) return [];
+      return rejectWithValue(error.response?.data || { message: error.message });
     }
   }
 );
