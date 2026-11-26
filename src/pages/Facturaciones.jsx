@@ -234,7 +234,10 @@ const Facturacion = () => {
   // Paginar solo la presentación: los totales y exportaciones usan el conjunto completo.
   const [pagina, setPagina] = useState(0);
   const [filasPorPagina, setFilasPorPagina] = useState(25);
-  const paginaActual = Math.min(pagina, Math.max(0, Math.ceil(filteredFacturas.length / filasPorPagina) - 1));
+  const ultimoTotalRef = useRef({ clave: claveConsulta, total: 0 });
+  if (consultaLista) ultimoTotalRef.current = { clave: claveConsulta, total: filteredFacturas.length };
+  const totalPaginacion = consultaLista ? filteredFacturas.length : (ultimoTotalRef.current.clave === claveConsulta ? ultimoTotalRef.current.total : 0);
+  const paginaActual = Math.min(pagina, Math.max(0, Math.ceil(totalPaginacion / filasPorPagina) - 1));
   const filasVisibles = useMemo(() => filteredFacturas
     .slice(paginaActual * filasPorPagina, (paginaActual + 1) * filasPorPagina)
     .map(f => ({ f, conciliacion: conciliarFactura(f) })),
@@ -246,7 +249,7 @@ const Facturacion = () => {
 
   const calcularIVA = (neto, alicuota) => {
     const n = Number(neto);
-    const a = Number(alicuota);
+    const a = Number(String(alicuota ?? "").trim().replace(/%$/, "").replace(",", "."));
 
     if (!n || !a) return "";
 
@@ -1344,7 +1347,7 @@ const Facturacion = () => {
               </TableContainer>
               <TablePagination
                 component="div"
-                count={filteredFacturas.length}
+                count={totalPaginacion}
                 page={paginaActual}
                 rowsPerPage={filasPorPagina}
                 rowsPerPageOptions={[25, 50, 100]}
@@ -1793,7 +1796,7 @@ const Facturacion = () => {
                             <InputLabel>Tipo IVA</InputLabel>
                             <Select
                               label="Tipo IVA"
-                              value={item.tipo}
+                              value={String(item.tipo ?? "")}
                               onChange={(e) =>
                                 handleArrayChange(
                                   setItemsAlicuota,
@@ -1803,6 +1806,10 @@ const Facturacion = () => {
                                 )
                               }
                             >
+                              <MenuItem value="">Seleccionar</MenuItem>
+                              {item.tipo != null && String(item.tipo) !== "" && !["21", "10.5", "27"].includes(String(item.tipo)) && (
+                                <MenuItem value={String(item.tipo)}>{String(item.tipo)} (valor registrado)</MenuItem>
+                              )}
                               <MenuItem value="21">21%</MenuItem>
                               <MenuItem value="10.5">10.5%</MenuItem>
                               <MenuItem value="27">27%</MenuItem>
