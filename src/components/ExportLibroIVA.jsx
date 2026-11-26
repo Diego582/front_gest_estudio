@@ -357,12 +357,6 @@ export const exportLibroIVA = (
 
   let finalY = doc.lastAutoTable.finalY + 8;
 
-  if (finalY > 145) {
-    doc.addPage();
-    drawHeader();
-    finalY = 35;
-  }
-
   const esCompras = tipoFactura === "recibida";
   const resumirGrupo = (grupo) => ({
     ...calcularExtras(grupo),
@@ -370,42 +364,38 @@ export const exportLibroIVA = (
   });
   const compras = esCompras ? resumirGrupo(facturasOrdenadas.filter(f => f.esGasto !== true)) : null;
   const gastos = esCompras ? resumirGrupo(facturasOrdenadas.filter(f => f.esGasto === true)) : null;
+  // El resumen utiliza exactamente las columnas monetarias visibles del detalle.
+  // Los conceptos sin columna seleccionable no se agregan implícitamente.
+  const seleccion = new Set(indices.map(i => campos[i]));
   const conceptos = [
-    ["Neto Gravado 0%", "netoGravado0"], ["IVA 0%", "iva0"],
-    ["Neto Gravado 2,5%", "netoGravado25"], ["IVA 2,5%", "iva25"],
-    ["Neto Gravado 5%", "netoGravado5"], ["IVA 5%", "iva5"],
-    ["Neto Gravado 10,5%", "netoGravado105"], ["IVA 10,5%", "iva105"],
-    ["Neto Gravado 21%", "netoGravado21"], ["IVA 21%", "iva21"],
-    ["Neto Gravado 27%", "netoGravado27"], ["IVA 27%", "iva27"],
-    ["Otros netos gravados", "otrosNetos"], ["Otro IVA", "otroIVA"],
-    ["No Gravado", "netoNoGravado"], ["Exento", "exento"],
-    ["Percepción IVA", "percepcionIVA"], ["Percepción IIBB", "percepcionIIBB"],
-    ["Percepción Ganancias", "percepcionGanancias"], ["Otros Tributos", "otrosTributos"],
-    ["Impuestos Internos", "impuestosInternos"], ["ITC", "ITC"],
-    ["Total discriminado", "montoDesdeItems"],
-    ["Diferencia no discriminada", "diferencia"],
-    ["Retenciones IVA (informativas)", "retencionIVA"],
-    ["Retenciones IIBB (informativas)", "retencionIIBB"],
-    ["Otras retenciones (informativas)", "otrasRetenciones"],
-    ["TOTAL", "montoTotal"],
-  ];
-  const valor = (grupo, clave) => {
-    const tasas = ["0", "25", "5", "105", "21", "27"];
-    if (clave === "otrosNetos" || clave === "otroIVA") {
-      const prefijo = clave === "otrosNetos" ? "netoGravado" : "iva";
-      return grupo[prefijo] - tasas.reduce((s, t) => s + grupo[prefijo + t], 0);
-    }
-    if (clave === "otrasRetenciones") return grupo.retenciones - grupo.retencionIVA - grupo.retencionIIBB;
-    return grupo[clave] || 0;
-  };
-  const filasCompras = esCompras ? conceptos
-    .filter(([, k]) => !["netoGravado0","iva0","netoGravado25","iva25","netoGravado5","iva5","otrosNetos","otroIVA","otrasRetenciones"].includes(k) || [compras,gastos].some(g => Math.round(valor(g,k)*100) !== 0))
-    .map(([label, k]) => {
-      const c = Math.round(valor(compras,k)*100);
-      const g = Math.round(valor(gastos,k)*100);
-      return [label, formatCurrency(c/100), formatCurrency(g/100), formatCurrency((c+g)/100)];
-    }) : [];
-  if (esCompras && finalY > 65) {
+    ["Neto Gravado 10,5%", "neto105", "netoGravado105"],
+    ["IVA 10,5%", "iva105", "iva105"],
+    ["Neto Gravado 21%", "neto21", "netoGravado21"],
+    ["IVA 21%", "iva21", "iva21"],
+    ["Neto Gravado 27%", "neto27", "netoGravado27"],
+    ["IVA 27%", "iva27", "iva27"],
+    ["No Gravado", "noGravado", "netoNoGravado"],
+    ["Exento", "exento", "exento"],
+    ["Percepción IVA", "percepcionIVA", "percepcionIVA"],
+    ["Percepción IIBB", "percepcionIIBB", "percepcionIIBB"],
+    ["Percepción Ganancias", "percepcionGanancias", "percepcionGanancias"],
+    ["Otros Tributos", "otrosTributos", "otrosTributos"],
+    ["Impuestos Internos", "impuestosInternos", "impuestosInternos"],
+    ["ITC", "ITC", "ITC"],
+    ["Retenciones IVA (informativas)", "retencionIVA", "retencionIVA"],
+    ["Retenciones IIBB (informativas)", "retencionIIBB", "retencionIIBB"],
+    ["TOTAL", "total", "montoTotal"],
+  ].filter(([, campo]) => seleccion.has(campo));
+  const resumenVentas = esCompras ? null : {...extras, ...resumen};
+  const filasResumen = conceptos.map(([label, , k]) => {
+    if (!esCompras) return [label, formatCurrency(resumenVentas[k])];
+    const c = Math.round((compras[k] || 0) * 100);
+    const g = Math.round((gastos[k] || 0) * 100);
+    return [label, formatCurrency(c/100), formatCurrency(g/100), formatCurrency((c+g)/100)];
+  });
+  // Si solo se seleccionaron datos identificatorios, no generar una tabla vacía.
+  if (filasResumen.length > 0) {
+  if (finalY + 10 + filasResumen.length * (esCompras ? 5 : 7) > 195 && finalY > 35) {
     doc.addPage();
     drawHeader();
     finalY = 35;
@@ -416,27 +406,7 @@ export const exportLibroIVA = (
     margin: esCompras ? { left: 55, right: 14, top: 32, bottom: 15 } : { left: 178 },
     tableWidth: esCompras ? 228 : 105,
     head: [esCompras ? ["Concepto", "Compras", "Gastos", "Total general"] : ["Concepto", "Importe"]],
-    body: esCompras ? filasCompras : [
-      ["Neto Gravado 10.5%", formatCurrency(resumen.netoGravado105)],
-      ["IVA 10.5%", formatCurrency(resumen.iva105)],
-      ["Neto Gravado 21%", formatCurrency(resumen.netoGravado21)],
-      ["IVA 21%", formatCurrency(resumen.iva21)],
-      ["Neto Gravado 27%", formatCurrency(resumen.netoGravado27)],
-      ["IVA 27%", formatCurrency(resumen.iva27)],
-      ["No Gravado", formatCurrency(resumen.netoNoGravado)],
-
-      ["Percepción IVA", formatCurrency(extras.percepcionIVA)],
-      ["Percepción IIBB", formatCurrency(extras.percepcionIIBB)],
-      ["Percepción Ganancias", formatCurrency(extras.percepcionGanancias)],
-      ["Retenciones IVA", formatCurrency(extras.retencionIVA)],
-      ["Retenciones IIBB", formatCurrency(extras.retencionIIBB)],
-      ["Impuestos Internos", formatCurrency(extras.impuestosInternos)],
-      ["ITC", formatCurrency(extras.ITC)],
-      ["Exento", formatCurrency(extras.exento)],
-      ["Otros Tributos", formatCurrency(extras.otrosTributos)],
-
-      ["TOTAL", formatCurrency(resumen.montoTotal)],
-    ],
+    body: filasResumen,
     theme: "grid",
 
     styles: {
@@ -469,6 +439,8 @@ export const exportLibroIVA = (
       }
     },
   });
+
+  }
 
   const pageCount = doc.internal.getNumberOfPages();
 
