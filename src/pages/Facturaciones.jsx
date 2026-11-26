@@ -20,6 +20,7 @@ import {
   TableCell,
   TableContainer,
   TableHead,
+  TablePagination,
   TableRow,
   Typography,
   TextField,
@@ -229,6 +230,19 @@ const Facturacion = () => {
   // Inicializamos los totales
   // Resumen actualizado
   const resumen = useMemo(() => resumirFacturas(filteredFacturas), [filteredFacturas]);
+
+  // Paginar solo la presentación: los totales y exportaciones usan el conjunto completo.
+  const [pagina, setPagina] = useState(0);
+  const [filasPorPagina, setFilasPorPagina] = useState(25);
+  const paginaActual = Math.min(pagina, Math.max(0, Math.ceil(filteredFacturas.length / filasPorPagina) - 1));
+  const filasVisibles = useMemo(() => filteredFacturas
+    .slice(paginaActual * filasPorPagina, (paginaActual + 1) * filasPorPagina)
+    .map(f => ({ f, conciliacion: conciliarFactura(f) })),
+    [filteredFacturas, paginaActual, filasPorPagina]);
+  useEffect(() => {
+    setPagina(0);
+    setOpenRows({});
+  }, [claveConsulta]);
 
   const calcularIVA = (neto, alicuota) => {
     const n = Number(neto);
@@ -1156,8 +1170,7 @@ const Facturacion = () => {
                   </TableHead>
 
                   <TableBody>
-                    {filteredFacturas.map((f) => {
-                      const conciliacion = conciliarFactura(f);
+                    {filasVisibles.map(({ f, conciliacion }) => {
                       const tieneItems = Array.isArray(f.items) && f.items.length > 0;
                       const formatoImporte = (n) => n.toLocaleString("es-AR", { style: "currency", currency: "ARS" });
                       return (
@@ -1329,6 +1342,18 @@ const Facturacion = () => {
                   </TableBody>
                 </Table>
               </TableContainer>
+              <TablePagination
+                component="div"
+                count={filteredFacturas.length}
+                page={paginaActual}
+                rowsPerPage={filasPorPagina}
+                rowsPerPageOptions={[25, 50, 100]}
+                onPageChange={(_, nuevaPagina) => { setPagina(nuevaPagina); setOpenRows({}); }}
+                onRowsPerPageChange={(e) => { setFilasPorPagina(Number(e.target.value)); setPagina(0); setOpenRows({}); }}
+                labelRowsPerPage="Comprobantes por página:"
+                labelDisplayedRows={({ from, to, count }) => `${from}–${to} de ${count}`}
+                sx={{ flexShrink: 0 }}
+              />
             </Paper>
           </Box>
 
