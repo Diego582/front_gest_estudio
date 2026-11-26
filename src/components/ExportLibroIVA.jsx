@@ -1,5 +1,6 @@
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
+import { resumirFacturas } from "../utils/conciliacionFacturas";
 
 export const exportLibroIVA = (
   cliente,
@@ -362,12 +363,60 @@ export const exportLibroIVA = (
     finalY = 35;
   }
 
+  const esCompras = tipoFactura === "recibida";
+  const resumirGrupo = (grupo) => ({
+    ...calcularExtras(grupo),
+    ...resumirFacturas(grupo),
+  });
+  const compras = esCompras ? resumirGrupo(facturasOrdenadas.filter(f => f.esGasto !== true)) : null;
+  const gastos = esCompras ? resumirGrupo(facturasOrdenadas.filter(f => f.esGasto === true)) : null;
+  const conceptos = [
+    ["Neto Gravado 0%", "netoGravado0"], ["IVA 0%", "iva0"],
+    ["Neto Gravado 2,5%", "netoGravado25"], ["IVA 2,5%", "iva25"],
+    ["Neto Gravado 5%", "netoGravado5"], ["IVA 5%", "iva5"],
+    ["Neto Gravado 10,5%", "netoGravado105"], ["IVA 10,5%", "iva105"],
+    ["Neto Gravado 21%", "netoGravado21"], ["IVA 21%", "iva21"],
+    ["Neto Gravado 27%", "netoGravado27"], ["IVA 27%", "iva27"],
+    ["Otros netos gravados", "otrosNetos"], ["Otro IVA", "otroIVA"],
+    ["No Gravado", "netoNoGravado"], ["Exento", "exento"],
+    ["Percepción IVA", "percepcionIVA"], ["Percepción IIBB", "percepcionIIBB"],
+    ["Percepción Ganancias", "percepcionGanancias"], ["Otros Tributos", "otrosTributos"],
+    ["Impuestos Internos", "impuestosInternos"], ["ITC", "ITC"],
+    ["Total discriminado", "montoDesdeItems"],
+    ["Diferencia no discriminada", "diferencia"],
+    ["Retenciones IVA (informativas)", "retencionIVA"],
+    ["Retenciones IIBB (informativas)", "retencionIIBB"],
+    ["Otras retenciones (informativas)", "otrasRetenciones"],
+    ["TOTAL", "montoTotal"],
+  ];
+  const valor = (grupo, clave) => {
+    const tasas = ["0", "25", "5", "105", "21", "27"];
+    if (clave === "otrosNetos" || clave === "otroIVA") {
+      const prefijo = clave === "otrosNetos" ? "netoGravado" : "iva";
+      return grupo[prefijo] - tasas.reduce((s, t) => s + grupo[prefijo + t], 0);
+    }
+    if (clave === "otrasRetenciones") return grupo.retenciones - grupo.retencionIVA - grupo.retencionIIBB;
+    return grupo[clave] || 0;
+  };
+  const filasCompras = esCompras ? conceptos
+    .filter(([, k]) => !["netoGravado0","iva0","netoGravado25","iva25","netoGravado5","iva5","otrosNetos","otroIVA","otrasRetenciones"].includes(k) || [compras,gastos].some(g => Math.round(valor(g,k)*100) !== 0))
+    .map(([label, k]) => {
+      const c = Math.round(valor(compras,k)*100);
+      const g = Math.round(valor(gastos,k)*100);
+      return [label, formatCurrency(c/100), formatCurrency(g/100), formatCurrency((c+g)/100)];
+    }) : [];
+  if (esCompras && finalY > 65) {
+    doc.addPage();
+    drawHeader();
+    finalY = 35;
+  }
+
   autoTable(doc, {
     startY: finalY,
-    margin: { left: 178 },
-    tableWidth: 105,
-    head: [["Concepto", "Importe"]],
-    body: [
+    margin: esCompras ? { left: 55, right: 14, top: 32, bottom: 15 } : { left: 178 },
+    tableWidth: esCompras ? 228 : 105,
+    head: [esCompras ? ["Concepto", "Compras", "Gastos", "Total general"] : ["Concepto", "Importe"]],
+    body: esCompras ? filasCompras : [
       ["Neto Gravado 10.5%", formatCurrency(resumen.netoGravado105)],
       ["IVA 10.5%", formatCurrency(resumen.iva105)],
       ["Neto Gravado 21%", formatCurrency(resumen.netoGravado21)],
@@ -392,7 +441,7 @@ export const exportLibroIVA = (
 
     styles: {
       fontSize: 8,
-      cellPadding: 1.8,
+      cellPadding: esCompras ? 1 : 1.8,
     },
 
     headStyles: {
@@ -402,11 +451,17 @@ export const exportLibroIVA = (
       fontStyle: "bold",
     },
 
-    columnStyles: {
+    columnStyles: esCompras ? {
+      0: { cellWidth: 78 },
+      1: { cellWidth: 50, halign: "right" },
+      2: { cellWidth: 50, halign: "right" },
+      3: { cellWidth: 50, halign: "right" },
+    } : {
       0: { cellWidth: 62 },
       1: { cellWidth: 43, halign: "right" },
     },
 
+    didDrawPage: () => { if (esCompras) drawHeader(); },
     didParseCell: (data) => {
       if (data.row.raw?.[0] === "TOTAL") {
         data.cell.styles.fontStyle = "bold";
