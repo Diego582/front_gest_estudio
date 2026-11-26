@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   Box,
   Button,
@@ -156,8 +156,8 @@ const Facturacion = () => {
     setOpenRows((prev) => ({ ...prev, [id]: !prev[id] }));
   };
 
-  const filteredFacturas = facturas
-    .filter((f) => f.tipo === tipoFactura)
+  const filteredFacturas = useMemo(() => facturas
+    .filter((f) => clienteId && String(f?.cliente_id?._id ?? f?.cliente_id ?? "") === String(clienteId) && f.tipo === tipoFactura)
     .filter((f) => {
       if (!fechaInicio && !fechaFin) return true;
 
@@ -216,11 +216,11 @@ const Facturacion = () => {
         mesFacturaNumero === Number(mesPeriodo) &&
         Number(anioFactura) === Number(anioPeriodo)
       );
-    });
+    }), [facturas, clienteId, tipoFactura, fechaInicio, fechaFin, mesPeriodo, anioPeriodo]);
 
   // Inicializamos los totales
   // Resumen actualizado
-  const resumen = resumirFacturas(filteredFacturas);
+  const resumen = useMemo(() => resumirFacturas(filteredFacturas), [filteredFacturas]);
 
   const calcularIVA = (neto, alicuota) => {
     const n = Number(neto);
@@ -246,6 +246,8 @@ const Facturacion = () => {
   // Handlers para filtros
   const handleClienteChange = (e) => {
     setClienteId(e.target.value);
+    setOpenRows({});
+    setOpenLibroIVA(false);
     setFormFactura((prev) => ({
       ...prev,
       cliente_id: e.target.value,
@@ -316,7 +318,7 @@ const Facturacion = () => {
     setDocValido(esValido);
 
     if (!esValido) {
-      setClienteEncontrado(false);
+      setPersonaEncontrada(false);
       return;
     }
 
@@ -681,8 +683,9 @@ const Facturacion = () => {
     }
   };
   const handleExportarIVA = async () => {
+    if (!clienteId) return;
     const clienteExport = {
-      clienteId: formFactura.cliente_id,
+      clienteId,
       mes: mesPeriodo,
       anio: anioPeriodo,
       tipo: tipoFactura,
@@ -809,6 +812,7 @@ const Facturacion = () => {
   };
 
   const exportarLibroIVASeleccionado = () => {
+    if (!clienteId || loading) return;
     exportLibroIVA(
       clientes.find((c) => c._id === clienteId),
       filteredFacturas,
