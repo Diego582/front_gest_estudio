@@ -19,6 +19,7 @@ const initialState = {
   factura: null,
   clienteConsulta: null,
   solicitudFacturas: null,
+  consultaCargada: null,
   loading: false,
   error: null,
   messages: [],
@@ -43,7 +44,8 @@ const facturaReducer = createReducer(initialState, (builder) => {
     // Carga de todas las Facturas
     .addCase(fetchFacturas.pending, (state, action) => {
       const cliente = String(action.meta.arg?.clienteId || "");
-      if (state.clienteConsulta !== cliente) state.facturas = [];
+      state.facturas = [];
+      state.consultaCargada = null;
       state.clienteConsulta = cliente;
       state.solicitudFacturas = action.meta.requestId;
       state.loading = true;
@@ -54,6 +56,7 @@ const facturaReducer = createReducer(initialState, (builder) => {
       state.solicitudFacturas = null;
       state.loading = false;
       state.facturas = action.payload;
+      state.consultaCargada = JSON.stringify(action.meta.arg);
     })
     .addCase(fetchFacturas.rejected, (state, action) => {
       if (state.solicitudFacturas !== action.meta.requestId) return;
@@ -158,7 +161,7 @@ const facturaReducer = createReducer(initialState, (builder) => {
     .addCase(uploadFacturasExcel.fulfilled, (state, action) => {
       if (state.clienteConsulta !== String(action.meta.arg?.clienteId || "")) return;
       state.loading = false;
-      state.facturas = action.payload; // 👈 reemplaza todo, evita duplicados
+      // La pantalla recarga el contexto activo después de importar.
       state.messages = ["Facturas cargadas desde Excel correctamente"];
     })
     .addCase(uploadFacturasExcel.rejected, (state, action) => {
@@ -173,7 +176,7 @@ const facturaReducer = createReducer(initialState, (builder) => {
     .addCase(uploadFacturasTxt.fulfilled, (state, action) => {
       if (state.clienteConsulta !== String(action.meta.arg?.clienteId || "")) return;
       state.loading = false;
-      state.facturas = action.payload; // 👈 reemplaza todo
+      // La pantalla recarga el contexto activo después de importar.
       state.messages = ["Facturas cargadas desde TXT correctamente"];
     })
     .addCase(uploadFacturasTxt.rejected, (state, action) => {
